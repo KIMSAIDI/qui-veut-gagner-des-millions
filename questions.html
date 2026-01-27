@@ -37,37 +37,83 @@
   </p>
 
   <button class="validate-btn" onclick="saveQuestion()">ENREGISTRER</button>
+
+  <hr>
+
+  <h2>Questions enregistrées</h2>
+  <ul id="questions-list"></ul>
+
 </div>
 
 <script>
 function saveQuestion() {
-  const answers = [
-    document.getElementById("r1").value,
-    document.getElementById("r2").value,
-    document.getElementById("r3").value,
-    document.getElementById("r4").value
-  ];
+  let questions = JSON.parse(localStorage.getItem("quizQuestions")) || [];
 
-  const correct = [];
-  if (document.getElementById("c1").checked) correct.push(0);
-  if (document.getElementById("c2").checked) correct.push(1);
-  if (document.getElementById("c3").checked) correct.push(2);
-  if (document.getElementById("c4").checked) correct.push(3);
-
-  if (correct.length === 0) {
-    alert("⚠️ Sélectionne au moins une bonne réponse");
+  if (questions.length >= 20) {
+    alert("❌ Tu as déjà 20 questions enregistrées");
     return;
   }
 
-  const question = {
-    question: document.getElementById("question").value,
+  const answers = [
+    r1.value, r2.value, r3.value, r4.value
+  ];
+
+  const correct = [];
+  if (c1.checked) correct.push(0);
+  if (c2.checked) correct.push(1);
+  if (c3.checked) correct.push(2);
+  if (c4.checked) correct.push(3);
+
+  if (!question.value || answers.some(a => a === "") || correct.length === 0) {
+    alert("⚠️ Remplis tout et coche au moins une bonne réponse");
+    return;
+  }
+
+  questions.push({
+    question: question.value,
     answers,
     correct
-  };
+  });
 
-  localStorage.setItem("quizQuestion", JSON.stringify(question));
-  alert("✅ Question enregistrée !");
+  localStorage.setItem("quizQuestions", JSON.stringify(questions));
+
+  alert(`✅ Question ajoutée (${questions.length}/20)`);
+
+  // reset formulaire
+  question.value = "";
+  [r1,r2,r3,r4].forEach(i => i.value = "");
+  [c1,c2,c3,c4].forEach(c => c.checked = false);
+
+  renderQuestions();
 }
+
+// Fonction pour afficher les questions déjà enregistrées
+function renderQuestions() {
+  const questions = JSON.parse(localStorage.getItem("quizQuestions")) || [];
+  const list = document.getElementById("questions-list");
+  list.innerHTML = "";
+
+  questions.forEach((q, index) => {
+    const li = document.createElement("li");
+    li.innerHTML = `
+      <strong>Q${index+1}:</strong> ${q.question}
+      <button onclick="deleteQuestion(${index})">❌ Supprimer</button>
+    `;
+    list.appendChild(li);
+  });
+}
+
+// Fonction pour supprimer une question
+function deleteQuestion(index) {
+  if (!confirm("Voulez-vous vraiment supprimer cette question ?")) return;
+  let questions = JSON.parse(localStorage.getItem("quizQuestions")) || [];
+  questions.splice(index, 1);
+  localStorage.setItem("quizQuestions", JSON.stringify(questions));
+  renderQuestions();
+}
+
+// Afficher les questions au chargement
+renderQuestions();
 </script>
 
 </body>
