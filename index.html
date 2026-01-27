@@ -8,6 +8,9 @@
 <body>
 
 <div class="game-container">
+
+  <button onclick="newGame()" class="newgame-btn">Nouvelle partie</button>
+
   <h1 class="logo">QUI VEUT GAGNER DES MILLIONS ?</h1>
 
   <div class="question-box">
@@ -34,6 +37,7 @@
   </div>
 </div>
 
+
 <script>
 // Liste des paliers
 const moneyLevels = [0, 100,200,300,500,1000,2000,4000,8000,16000,32000,64000,125000,250000,500000,1000000];
@@ -50,8 +54,16 @@ let currentLevel = Number(localStorage.getItem("currentLevel")) || 0;
 // Afficher la somme actuelle
 moneyEl.innerText = "💰 " + moneyLevels[currentLevel] + " €";
 
-// Récupération de la question
-const data = JSON.parse(localStorage.getItem("quizQuestion"));
+const questions = JSON.parse(localStorage.getItem("quizQuestions")) || [];
+let currentQuestionIndex = Number(localStorage.getItem("currentQuestionIndex")) || 0;
+
+if (questions.length === 0) {
+  document.body.innerHTML = "<h2 style='color:white;text-align:center'>Aucune question enregistrée</h2>";
+}
+
+let data = questions[currentQuestionIndex];
+
+
 if (!data) {
   document.body.innerHTML = "<h2 style='color:white;text-align:center'>Aucune question enregistrée</h2>";
 }
@@ -80,29 +92,48 @@ data.answers.forEach((answer,index)=>{
 });
 
 // Fonction VALIDER
-validateBtn.onclick = ()=>{
-  let correctClicked = selected.every(i=>data.correct.includes(i)) && data.correct.length === selected.length;
+validateBtn.onclick = () => {
+  let correctClicked =
+    selected.every(i => data.correct.includes(i)) &&
+    data.correct.length === selected.length;
 
-  buttons.forEach((btn,index)=>{
-    if(data.correct.includes(index)) btn.classList.add("correct");
-    else if(selected.includes(index)) btn.classList.add("wrong");
+  buttons.forEach((btn, index) => {
+    if (data.correct.includes(index)) btn.classList.add("correct");
+    else if (selected.includes(index)) btn.classList.add("wrong");
     btn.disabled = true;
   });
 
-  // Mise à jour de la somme
-  if(correctClicked){
+  // Mise à jour du gain
+  if (correctClicked) {
     currentLevel++;
-    if(currentLevel>=moneyLevels.length) currentLevel=moneyLevels.length-1;
-    alert("✅ Correct ! Vous gagnez : "+moneyLevels[currentLevel]+" €");
+    if (currentLevel >= moneyLevels.length)
+      currentLevel = moneyLevels.length - 1;
+    alert("✅ Correct ! Vous gagnez : " + moneyLevels[currentLevel] + " €");
   } else {
-    currentLevel = Math.max(0,currentLevel-1);
-    alert("❌ Mauvaise réponse ! Vous descendez au palier : "+moneyLevels[currentLevel]+" €");
+    currentLevel = Math.max(0, currentLevel - 1);
+    alert("❌ Mauvaise réponse ! Vous descendez au palier : " + moneyLevels[currentLevel] + " €");
   }
 
-  // Affichage et sauvegarde
+  // Affichage + sauvegarde
   moneyEl.innerText = "💰 " + moneyLevels[currentLevel] + " €";
   localStorage.setItem("currentLevel", currentLevel);
+
+  // ➜ QUESTION SUIVANTE
+  setTimeout(() => {
+    currentQuestionIndex++;
+    localStorage.setItem("currentQuestionIndex", currentQuestionIndex);
+
+    if (currentQuestionIndex >= questions.length) {
+      alert("🎉 Partie terminée !");
+      localStorage.removeItem("currentQuestionIndex");
+      return;
+    }
+
+    location.reload();
+  }, 1500);
 };
+
+
 
 // 50/50 joker
 document.getElementById("fifty").onclick = () => {
@@ -126,6 +157,14 @@ document.getElementById("reset").onclick = () => {
     alert("🔄 Gain remis à zéro !");
   }
 };
+
+
+function newGame() {
+  localStorage.removeItem("currentQuestionIndex");
+  localStorage.removeItem("currentLevel");
+  location.reload();
+}
+
 </script>
 
 </body>
