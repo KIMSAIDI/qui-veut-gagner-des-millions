@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <title>Créer une question</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<div class="game-container">
+  <h1 class="logo">CRÉER UNE QUESTION</h1>
+
+  <textarea id="question" placeholder="Écris la question ici..."></textarea>
+
+  <div class="answer-line">
+    <input type="checkbox" id="c1">
+    <input type="text" id="r1" placeholder="Réponse A">
+  </div>
+
+  <div class="answer-line">
+    <input type="checkbox" id="c2">
+    <input type="text" id="r2" placeholder="Réponse B">
+  </div>
+
+  <div class="answer-line">
+    <input type="checkbox" id="c3">
+    <input type="text" id="r3" placeholder="Réponse C">
+  </div>
+
+  <div class="answer-line">
+    <input type="checkbox" id="c4">
+    <input type="text" id="r4" placeholder="Réponse D">
+  </div>
+
+  <p class="info">
+    Coche la/les bonne(s) réponse(s)
+  </p>
+
+  <button class="validate-btn" onclick="saveQuestion()">ENREGISTRER</button>
+</div>
+
+<script>
+function saveQuestion() {
+  const answers = [
+    document.getElementById("r1").value,
+    document.getElementById("r2").value,
+    document.getElementById("r3").value,
+    document.getElementById("r4").value
+  ];
+
+  const correct = [];
+  if (document.getElementById("c1").checked) correct.push(0);
+  if (document.getElementById("c2").checked) correct.push(1);
+  if (document.getElementById("c3").checked) correct.push(2);
+  if (document.getElementById("c4").checked) correct.push(3);
+
+  if (correct.length === 0) {
+    alert("⚠️ Sélectionne au moins une bonne réponse");
+    return;
+  }
+
+  const question = {
+    question: document.getElementById("question").value,
+    answers,
+    correct
+  };
+
+  localStorage.setItem("quizQuestion", JSON.stringify(question));
+  alert("✅ Question enregistrée !");
+}
+</script>
+
+</body>
+</html>

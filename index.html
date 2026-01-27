@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<title>Qui veut gagner des millions ?</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<div class="game-container">
+  <h1 class="logo">QUI VEUT GAGNER DES MILLIONS ?</h1>
+
+  <div class="question-box">
+    <p id="question"></p>
+  </div>
+
+  <div id="answers" class="answers-grid"></div>
+
+ 
+  <!-- Conteneur pour le gain + bouton reset -->
+<div class="money-container">
+  <div id="money" class="money">💰 0 €</div>
+  <button id="reset" class="reset-btn">Réinitialiser le gain</button>
+</div>
+
+  <!-- Bouton VALIDER -->
+  <button id="validate" class="validate-btn">VALIDER</button>
+
+  <!-- LES TROIS JOKERS -->
+  <div class="lifelines">
+    <button id="fifty" class="lifeline-btn">50/50</button>
+    <button id="audience" class="lifeline-btn">Appel au public</button>
+    <button id="friend" class="lifeline-btn">Appel à un ami</button>
+  </div>
+</div>
+
+<script>
+// Liste des paliers
+const moneyLevels = [0, 100,200,300,500,1000,2000,4000,8000,16000,32000,64000,125000,250000,500000,1000000];
+
+// Récupération DOM
+const questionEl = document.getElementById("question");
+const answersEl = document.getElementById("answers");
+const moneyEl = document.getElementById("money");
+const validateBtn = document.getElementById("validate");
+
+// Au début : récupérer le palier sauvegardé
+let currentLevel = Number(localStorage.getItem("currentLevel")) || 0;
+
+// Afficher la somme actuelle
+moneyEl.innerText = "💰 " + moneyLevels[currentLevel] + " €";
+
+// Récupération de la question
+const data = JSON.parse(localStorage.getItem("quizQuestion"));
+if (!data) {
+  document.body.innerHTML = "<h2 style='color:white;text-align:center'>Aucune question enregistrée</h2>";
+}
+
+let selected = [];
+const buttons = [];
+
+// Affichage de la question
+questionEl.innerText = data.question;
+
+// Création des boutons réponses
+data.answers.forEach((answer,index)=>{
+  const btn = document.createElement("button");
+  btn.className = "answer-btn";
+  btn.innerText = answer;
+
+  btn.onclick = () => {
+    btn.classList.toggle("selected");
+    if(selected.includes(index)){
+      selected.splice(selected.indexOf(index),1);
+    } else selected.push(index);
+  }
+
+  answersEl.appendChild(btn);
+  buttons.push(btn);
+});
+
+// Fonction VALIDER
+validateBtn.onclick = ()=>{
+  let correctClicked = selected.every(i=>data.correct.includes(i)) && data.correct.length === selected.length;
+
+  buttons.forEach((btn,index)=>{
+    if(data.correct.includes(index)) btn.classList.add("correct");
+    else if(selected.includes(index)) btn.classList.add("wrong");
+    btn.disabled = true;
+  });
+
+  // Mise à jour de la somme
+  if(correctClicked){
+    currentLevel++;
+    if(currentLevel>=moneyLevels.length) currentLevel=moneyLevels.length-1;
+    alert("✅ Correct ! Vous gagnez : "+moneyLevels[currentLevel]+" €");
+  } else {
+    currentLevel = Math.max(0,currentLevel-1);
+    alert("❌ Mauvaise réponse ! Vous descendez au palier : "+moneyLevels[currentLevel]+" €");
+  }
+
+  // Affichage et sauvegarde
+  moneyEl.innerText = "💰 " + moneyLevels[currentLevel] + " €";
+  localStorage.setItem("currentLevel", currentLevel);
+};
+
+// 50/50 joker
+document.getElementById("fifty").onclick = () => {
+  const wrongIndexes = buttons.map((b,i)=>i).filter(i => !data.correct.includes(i));
+  wrongIndexes.sort(()=>Math.random()-0.5);
+  const toRemove = wrongIndexes.slice(0,2);
+  toRemove.forEach(i=>buttons[i].style.visibility='hidden');
+  document.getElementById("fifty").disabled=true;
+};
+
+// Les autres jokers
+document.getElementById("audience").onclick = () => { alert("Appel au public "); document.getElementById("audience").disabled=true; };
+document.getElementById("friend").onclick = () => { alert("Appel à un ami "); document.getElementById("friend").disabled=true; };
+
+// Bouton Réinitialiser le gain
+document.getElementById("reset").onclick = () => {
+  if(confirm("Voulez-vous vraiment remettre le gain à zéro ?")) {
+    currentLevel = 0;
+    localStorage.setItem("currentLevel", currentLevel);
+    moneyEl.innerText = "💰 " + moneyLevels[currentLevel] + " €";
+    alert("🔄 Gain remis à zéro !");
+  }
+};
+</script>
+
+</body>
+</html>
