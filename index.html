@@ -4,6 +4,14 @@
 <meta charset="UTF-8">
 <title>Qui veut gagner des millions ?</title>
 <link rel="stylesheet" href="style.css">
+<style>
+  /* Ajout d'un style pour les jokers utilisés */
+  .lifeline-btn:disabled {
+    opacity: 0.3;
+    cursor: not-allowed;
+    filter: grayscale(1);
+  }
+</style>
 </head>
 <body>
 
@@ -19,17 +27,13 @@
 
   <div id="answers" class="answers-grid"></div>
 
- 
-  <!-- Conteneur pour le gain + bouton reset -->
-<div class="money-container">
-  <div id="money" class="money">💰 0 €</div>
-  <button id="reset" class="reset-btn">Réinitialiser le gain</button>
-</div>
+  <div class="money-container">
+    <div id="money" class="money">💰 0 €</div>
+    <button id="reset" class="reset-btn">Réinitialiser le gain</button>
+  </div>
 
-  <!-- Bouton VALIDER -->
   <button id="validate" class="validate-btn">VALIDER</button>
 
-  <!-- LES TROIS JOKERS -->
   <div class="lifelines">
     <button id="fifty" class="lifeline-btn">50/50</button>
     <button id="audience" class="lifeline-btn">Appel au public</button>
@@ -37,61 +41,62 @@
   </div>
 </div>
 
-
 <script>
-// Liste des paliers
-const moneyLevels = [0, 100,200,300,500,1000,2000,4000,8000,16000,32000,64000,125000,250000,500000,1000000];
+// 1. CONFIGURATION ET ÉTAT INITIAL
+const moneyLevels = [0, 100, 200, 300, 500, 1000, 2000, 4000, 8000, 16000, 32000, 64000, 125000, 250000, 500000, 1000000];
 
-// Récupération DOM
 const questionEl = document.getElementById("question");
 const answersEl = document.getElementById("answers");
 const moneyEl = document.getElementById("money");
 const validateBtn = document.getElementById("validate");
 
-// Au début : récupérer le palier sauvegardé
+// Récupération de la progression
 let currentLevel = Number(localStorage.getItem("currentLevel")) || 0;
-
-// Afficher la somme actuelle
-moneyEl.innerText = "💰 " + moneyLevels[currentLevel] + " €";
-
-const questions = JSON.parse(localStorage.getItem("quizQuestions")) || [];
 let currentQuestionIndex = Number(localStorage.getItem("currentQuestionIndex")) || 0;
+const questions = JSON.parse(localStorage.getItem("quizQuestions")) || [];
 
-if (questions.length === 0) {
-  document.body.innerHTML = "<h2 style='color:white;text-align:center'>Aucune question enregistrée</h2>";
+// --- NOUVEAU : GESTION DES JOKERS ---
+const fiftyBtn = document.getElementById("fifty");
+const audienceBtn = document.getElementById("audience");
+const friendBtn = document.getElementById("friend");
+
+// On vérifie si les jokers ont déjà été utilisés dans cette partie
+if (localStorage.getItem("usedFifty") === "true") fiftyBtn.disabled = true;
+if (localStorage.getItem("usedAudience") === "true") audienceBtn.disabled = true;
+if (localStorage.getItem("usedFriend") === "true") friendBtn.disabled = true;
+// ------------------------------------
+
+// Vérification si des questions existent
+if (questions.length === 0 || !questions[currentQuestionIndex]) {
+  document.body.innerHTML = "<h2 style='color:white;text-align:center;margin-top:50px;'>Aucune question enregistrée. <br><a href='questions.html' style='color:orange'>Ajouter des questions</a></h2>";
 }
 
 let data = questions[currentQuestionIndex];
-
-
-if (!data) {
-  document.body.innerHTML = "<h2 style='color:white;text-align:center'>Aucune question enregistrée</h2>";
-}
+moneyEl.innerText = "💰 " + moneyLevels[currentLevel] + " €";
 
 let selected = [];
 const buttons = [];
 
-// Affichage de la question
+// 2. AFFICHAGE DE LA QUESTION
 questionEl.innerText = data.question;
 
-// Création des boutons réponses
-data.answers.forEach((answer,index)=>{
+data.answers.forEach((answer, index) => {
   const btn = document.createElement("button");
   btn.className = "answer-btn";
   btn.innerText = answer;
 
   btn.onclick = () => {
     btn.classList.toggle("selected");
-    if(selected.includes(index)){
-      selected.splice(selected.indexOf(index),1);
+    if (selected.includes(index)) {
+      selected.splice(selected.indexOf(index), 1);
     } else selected.push(index);
-  }
+  };
 
   answersEl.appendChild(btn);
   buttons.push(btn);
 });
 
-// Fonction VALIDER
+// 3. LOGIQUE DE VALIDATION
 validateBtn.onclick = () => {
   let correctClicked =
     selected.every(i => data.correct.includes(i)) &&
@@ -103,29 +108,25 @@ validateBtn.onclick = () => {
     btn.disabled = true;
   });
 
-  // Mise à jour du gain
   if (correctClicked) {
     currentLevel++;
-    if (currentLevel >= moneyLevels.length)
-      currentLevel = moneyLevels.length - 1;
+    if (currentLevel >= moneyLevels.length) currentLevel = moneyLevels.length - 1;
     alert("✅ Correct ! Vous gagnez : " + moneyLevels[currentLevel] + " €");
   } else {
     currentLevel = Math.max(0, currentLevel - 1);
     alert("❌ Mauvaise réponse ! Vous descendez au palier : " + moneyLevels[currentLevel] + " €");
   }
 
-  // Affichage + sauvegarde
   moneyEl.innerText = "💰 " + moneyLevels[currentLevel] + " €";
   localStorage.setItem("currentLevel", currentLevel);
 
-  // ➜ QUESTION SUIVANTE
   setTimeout(() => {
     currentQuestionIndex++;
     localStorage.setItem("currentQuestionIndex", currentQuestionIndex);
 
     if (currentQuestionIndex >= questions.length) {
-      alert("🎉 Partie terminée !");
-      localStorage.removeItem("currentQuestionIndex");
+      alert("🎉 Partie terminée ! Score final : " + moneyLevels[currentLevel] + " €");
+      newGame();
       return;
     }
 
@@ -133,38 +134,50 @@ validateBtn.onclick = () => {
   }, 1500);
 };
 
-
-
-// 50/50 joker
-document.getElementById("fifty").onclick = () => {
-  const wrongIndexes = buttons.map((b,i)=>i).filter(i => !data.correct.includes(i));
-  wrongIndexes.sort(()=>Math.random()-0.5);
-  const toRemove = wrongIndexes.slice(0,2);
-  toRemove.forEach(i=>buttons[i].style.visibility='hidden');
-  document.getElementById("fifty").disabled=true;
+// 4. LES JOKERS (MODIFIÉS)
+fiftyBtn.onclick = () => {
+  const wrongIndexes = buttons.map((b, i) => i).filter(i => !data.correct.includes(i));
+  wrongIndexes.sort(() => Math.random() - 0.5);
+  const toRemove = wrongIndexes.slice(0, 2);
+  toRemove.forEach(i => buttons[i].style.visibility = 'hidden');
+  
+  // Désactivation et sauvegarde
+  fiftyBtn.disabled = true;
+  localStorage.setItem("usedFifty", "true");
 };
 
-// Les autres jokers
-document.getElementById("audience").onclick = () => { alert("Appel au public "); document.getElementById("audience").disabled=true; };
-document.getElementById("friend").onclick = () => { alert("Appel à un ami "); document.getElementById("friend").disabled=true; };
+audienceBtn.onclick = () => { 
+  alert("L'audience vote majoritairement pour la réponse : " + data.answers[data.correct[0]]); 
+  audienceBtn.disabled = true;
+  localStorage.setItem("usedAudience", "true");
+};
 
-// Bouton Réinitialiser le gain
+friendBtn.onclick = () => { 
+  alert("Votre ami vous dit : 'Je suis sûr à 80% que c'est la réponse " + data.answers[data.correct[0]] + "'"); 
+  friendBtn.disabled = true;
+  localStorage.setItem("usedFriend", "true");
+};
+
+// 5. FONCTIONS DE RÉINITIALISATION
 document.getElementById("reset").onclick = () => {
-  if(confirm("Voulez-vous vraiment remettre le gain à zéro ?")) {
+  if (confirm("Voulez-vous vraiment remettre le gain à zéro ?")) {
     currentLevel = 0;
     localStorage.setItem("currentLevel", currentLevel);
     moneyEl.innerText = "💰 " + moneyLevels[currentLevel] + " €";
-    alert("🔄 Gain remis à zéro !");
   }
 };
-
 
 function newGame() {
   localStorage.removeItem("currentQuestionIndex");
   localStorage.removeItem("currentLevel");
+  
+  // Suppression des jokers du stockage pour la nouvelle partie
+  localStorage.removeItem("usedFifty");
+  localStorage.removeItem("usedAudience");
+  localStorage.removeItem("usedFriend");
+  
   location.reload();
 }
-
 </script>
 
 </body>
