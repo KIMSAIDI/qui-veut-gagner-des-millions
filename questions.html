@@ -32,9 +32,7 @@
     <input type="text" id="r4" placeholder="Réponse D">
   </div>
 
-  <p class="info">
-    Coche la/les bonne(s) réponse(s)
-  </p>
+  <p class="info">Coche la/les bonne(s) réponse(s)</p>
 
   <button class="validate-btn" onclick="saveQuestion()">ENREGISTRER</button>
 
@@ -42,7 +40,6 @@
 
   <h2>Questions enregistrées</h2>
   <ul id="questions-list"></ul>
-
 </div>
 
 <script>
@@ -54,10 +51,7 @@ function saveQuestion() {
     return;
   }
 
-  const answers = [
-    r1.value, r2.value, r3.value, r4.value
-  ];
-
+  const answers = [r1.value, r2.value, r3.value, r4.value];
   const correct = [];
   if (c1.checked) correct.push(0);
   if (c2.checked) correct.push(1);
@@ -69,17 +63,11 @@ function saveQuestion() {
     return;
   }
 
-  questions.push({
-    question: question.value,
-    answers,
-    correct
-  });
-
+  questions.push({ question: question.value, answers, correct });
   localStorage.setItem("quizQuestions", JSON.stringify(questions));
 
   alert(`✅ Question ajoutée (${questions.length}/20)`);
 
-  // reset formulaire
   question.value = "";
   [r1,r2,r3,r4].forEach(i => i.value = "");
   [c1,c2,c3,c4].forEach(c => c.checked = false);
@@ -87,23 +75,41 @@ function saveQuestion() {
   renderQuestions();
 }
 
-// Fonction pour afficher les questions déjà enregistrées
 function renderQuestions() {
   const questions = JSON.parse(localStorage.getItem("quizQuestions")) || [];
   const list = document.getElementById("questions-list");
   list.innerHTML = "";
 
   questions.forEach((q, index) => {
+    const letters = ["A", "B", "C", "D"];
+    const answersHTML = q.answers.map((a, i) => {
+      const isCorrect = q.correct.includes(i);
+      return `<span style="
+        display: inline-block;
+        margin: 4px 6px 0 0;
+        padding: 3px 10px;
+        border-radius: 20px;
+        font-size: 13px;
+        border: 1px solid ${isCorrect ? 'rgba(0,230,118,0.5)' : 'rgba(255,255,255,0.1)'};
+        background: ${isCorrect ? 'rgba(0,230,118,0.12)' : 'rgba(255,255,255,0.04)'};
+        color: ${isCorrect ? '#00e676' : 'rgba(255,255,255,0.5)'};
+      "><strong>${letters[i]}.</strong> ${a}</span>`;
+    }).join("");
+
     const li = document.createElement("li");
+    li.style.flexDirection = "column";
+    li.style.alignItems = "flex-start";
     li.innerHTML = `
-      <strong>Q${index+1}:</strong> ${q.question}
-      <button onclick="deleteQuestion(${index})">❌ Supprimer</button>
+      <div style="display:flex; justify-content:space-between; width:100%; align-items:center;">
+        <span><strong>Q${index+1}</strong>${q.question}</span>
+        <button onclick="deleteQuestion(${index})">❌ Supprimer</button>
+      </div>
+      <div style="margin-top: 8px;">${answersHTML}</div>
     `;
     list.appendChild(li);
   });
 }
 
-// Fonction pour supprimer une question
 function deleteQuestion(index) {
   if (!confirm("Voulez-vous vraiment supprimer cette question ?")) return;
   let questions = JSON.parse(localStorage.getItem("quizQuestions")) || [];
@@ -112,7 +118,6 @@ function deleteQuestion(index) {
   renderQuestions();
 }
 
-// Afficher les questions au chargement
 renderQuestions();
 </script>
 
