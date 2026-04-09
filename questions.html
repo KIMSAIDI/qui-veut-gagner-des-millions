@@ -4,8 +4,156 @@
   <meta charset="UTF-8">
   <title>Créer une question</title>
   <link rel="stylesheet" href="style.css">
+  <style>
+    /* ---- DRAG & DROP ---- */
+    #questions-list li {
+      cursor: grab;
+      transition: opacity 0.2s, transform 0.15s, box-shadow 0.2s;
+      user-select: none;
+    }
+    #questions-list li:active { cursor: grabbing; }
+    #questions-list li.dragging {
+      opacity: 0.4;
+      transform: scale(0.98);
+    }
+    #questions-list li.drag-over {
+      box-shadow: 0 0 0 2px rgba(255,208,0,0.7), 0 0 14px rgba(255,208,0,0.25);
+    }
+
+    .drag-handle {
+      color: rgba(255,208,0,0.35);
+      font-size: 16px;
+      cursor: grab;
+      flex-shrink: 0;
+      padding: 0 4px 0 0;
+      line-height: 1;
+      transition: color 0.2s;
+    }
+    .drag-handle:hover { color: rgba(255,208,0,0.8); }
+
+    /* ---- EDIT BUTTON ---- */
+    #questions-list .edit-btn {
+      padding: 5px 12px;
+      font-family: 'Rajdhani', sans-serif;
+      font-size: 12px;
+      font-weight: 700;
+      border-radius: 6px;
+      border: 1px solid rgba(100,160,255,0.4);
+      background: rgba(60,100,200,0.12);
+      color: #8ab4ff;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+    #questions-list .edit-btn:hover {
+      background: rgba(60,100,200,0.3);
+      border-color: #8ab4ff;
+      box-shadow: 0 0 10px rgba(100,160,255,0.25);
+    }
+
+    /* ---- EDIT MODAL ---- */
+    .modal-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(2,8,24,0.88);
+      z-index: 200;
+      align-items: center;
+      justify-content: center;
+    }
+    .modal-overlay.active { display: flex; }
+    .modal-box {
+      background: linear-gradient(160deg, #0c1e5a 0%, #060f30 100%);
+      border: 1px solid rgba(255,208,0,0.4);
+      border-radius: 12px;
+      padding: 28px 32px;
+      max-width: 560px;
+      width: 92%;
+      box-shadow: 0 0 40px rgba(0,0,0,0.8);
+    }
+    .modal-box h3 {
+      font-family: 'Cinzel', serif;
+      color: var(--gold);
+      font-size: 16px;
+      letter-spacing: 1.5px;
+      margin-bottom: 20px;
+    }
+    .modal-actions {
+      display: flex;
+      gap: 12px;
+      justify-content: flex-end;
+      margin-top: 20px;
+    }
+    .modal-cancel {
+      padding: 8px 20px;
+      border-radius: 8px;
+      border: 1px solid rgba(255,255,255,0.2);
+      background: rgba(255,255,255,0.06);
+      color: rgba(255,255,255,0.6);
+      font-family: 'Rajdhani', sans-serif;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .modal-cancel:hover { background: rgba(255,255,255,0.12); }
+    .modal-save {
+      padding: 8px 22px;
+      border-radius: 8px;
+      border: none;
+      background: linear-gradient(135deg, var(--gold) 0%, var(--gold-dark) 100%);
+      color: #080808;
+      font-family: 'Cinzel', serif;
+      font-size: 13px;
+      font-weight: 700;
+      letter-spacing: 1px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .modal-save:hover {
+      box-shadow: 0 0 16px rgba(255,208,0,0.4);
+      transform: translateY(-1px);
+    }
+
+    .action-btns {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      flex-shrink: 0;
+    }
+  </style>
 </head>
 <body>
+
+<!-- EDIT MODAL -->
+<div class="modal-overlay" id="edit-modal">
+  <div class="modal-box">
+    <h3>✏️ MODIFIER LA QUESTION</h3>
+    <textarea id="edit-question" placeholder="Écris la question ici..."></textarea>
+    <div class="answer-line">
+      <input type="checkbox" id="ec1">
+      <input type="text" id="er1" placeholder="Réponse A">
+    </div>
+    <div class="answer-line">
+      <input type="checkbox" id="ec2">
+      <input type="text" id="er2" placeholder="Réponse B">
+    </div>
+    <div class="answer-line">
+      <input type="checkbox" id="ec3">
+      <input type="text" id="er3" placeholder="Réponse C">
+    </div>
+    <div class="answer-line">
+      <input type="checkbox" id="ec4">
+      <input type="text" id="er4" placeholder="Réponse D">
+    </div>
+    <p class="info">Coche la/les bonne(s) réponse(s)</p>
+    <div class="modal-actions">
+      <button class="modal-cancel" onclick="closeEdit()">Annuler</button>
+      <button class="modal-save" onclick="saveEdit()">ENREGISTRER</button>
+    </div>
+  </div>
+</div>
 
 <div class="game-container">
   <h1 class="logo">CRÉER UNE QUESTION</h1>
@@ -16,17 +164,14 @@
     <input type="checkbox" id="c1">
     <input type="text" id="r1" placeholder="Réponse A">
   </div>
-
   <div class="answer-line">
     <input type="checkbox" id="c2">
     <input type="text" id="r2" placeholder="Réponse B">
   </div>
-
   <div class="answer-line">
     <input type="checkbox" id="c3">
     <input type="text" id="r3" placeholder="Réponse C">
   </div>
-
   <div class="answer-line">
     <input type="checkbox" id="c4">
     <input type="text" id="r4" placeholder="Réponse D">
@@ -38,43 +183,40 @@
 
   <hr>
 
-  <h2>Questions enregistrées</h2>
+  <h2>Questions enregistrées <span style="font-family:'Rajdhani',sans-serif;font-size:13px;color:rgba(255,255,255,0.35);font-weight:400;letter-spacing:0;"></span></h2>
   <ul id="questions-list"></ul>
 </div>
 
 <script>
+let editIndex = null;
+
+// ---- SAVE NEW QUESTION ----
 function saveQuestion() {
   let questions = JSON.parse(localStorage.getItem("quizQuestions")) || [];
-
   if (questions.length >= 20) {
     alert("❌ Tu as déjà 20 questions enregistrées");
     return;
   }
-
   const answers = [r1.value, r2.value, r3.value, r4.value];
   const correct = [];
   if (c1.checked) correct.push(0);
   if (c2.checked) correct.push(1);
   if (c3.checked) correct.push(2);
   if (c4.checked) correct.push(3);
-
   if (!question.value || answers.some(a => a === "") || correct.length === 0) {
     alert("⚠️ Remplis tout et coche au moins une bonne réponse");
     return;
   }
-
   questions.push({ question: question.value, answers, correct });
   localStorage.setItem("quizQuestions", JSON.stringify(questions));
-
   alert(`✅ Question ajoutée (${questions.length}/20)`);
-
   question.value = "";
   [r1,r2,r3,r4].forEach(i => i.value = "");
   [c1,c2,c3,c4].forEach(c => c.checked = false);
-
   renderQuestions();
 }
 
+// ---- RENDER QUESTIONS ----
 function renderQuestions() {
   const questions = JSON.parse(localStorage.getItem("quizQuestions")) || [];
   const list = document.getElementById("questions-list");
@@ -99,17 +241,72 @@ function renderQuestions() {
     const li = document.createElement("li");
     li.style.flexDirection = "column";
     li.style.alignItems = "flex-start";
+    li.dataset.index = index;
+    li.draggable = true;
     li.innerHTML = `
-      <div style="display:flex; justify-content:space-between; width:100%; align-items:center;">
-        <span><strong>Q${index+1}</strong>${q.question}</span>
-        <button onclick="deleteQuestion(${index})">❌ Supprimer</button>
+      <div style="display:flex; justify-content:space-between; width:100%; align-items:center; gap:10px;">
+        <span class="drag-handle" title="Glisser pour déplacer">⠿</span>
+        <span style="flex:1"><strong>Q${index+1} </strong>${q.question}</span>
+        <div class="action-btns">
+          <button class="edit-btn" onclick="openEdit(${index})">✏️ Modifier</button>
+          <button onclick="deleteQuestion(${index})">❌ Supprimer</button>
+        </div>
       </div>
-      <div style="margin-top: 8px;">${answersHTML}</div>
+      <div style="margin-top: 8px; padding-left: 24px;">${answersHTML}</div>
     `;
+
+    // --- Drag events ---
+    li.addEventListener("dragstart", handleDragStart);
+    li.addEventListener("dragover", handleDragOver);
+    li.addEventListener("dragleave", handleDragLeave);
+    li.addEventListener("drop", handleDrop);
+    li.addEventListener("dragend", handleDragEnd);
+
     list.appendChild(li);
   });
 }
 
+// ---- DRAG & DROP ----
+let dragSrcIndex = null;
+
+function handleDragStart(e) {
+  dragSrcIndex = parseInt(this.dataset.index);
+  this.classList.add("dragging");
+  e.dataTransfer.effectAllowed = "move";
+}
+
+function handleDragOver(e) {
+  e.preventDefault();
+  e.dataTransfer.dropEffect = "move";
+  document.querySelectorAll("#questions-list li").forEach(li => li.classList.remove("drag-over"));
+  this.classList.add("drag-over");
+}
+
+function handleDragLeave() {
+  this.classList.remove("drag-over");
+}
+
+function handleDrop(e) {
+  e.stopPropagation();
+  const targetIndex = parseInt(this.dataset.index);
+  if (dragSrcIndex === null || dragSrcIndex === targetIndex) return;
+
+  let questions = JSON.parse(localStorage.getItem("quizQuestions")) || [];
+  const moved = questions.splice(dragSrcIndex, 1)[0];
+  questions.splice(targetIndex, 0, moved);
+  localStorage.setItem("quizQuestions", JSON.stringify(questions));
+  dragSrcIndex = null;
+  renderQuestions();
+}
+
+function handleDragEnd() {
+  document.querySelectorAll("#questions-list li").forEach(li => {
+    li.classList.remove("dragging", "drag-over");
+  });
+  dragSrcIndex = null;
+}
+
+// ---- DELETE ----
 function deleteQuestion(index) {
   if (!confirm("Voulez-vous vraiment supprimer cette question ?")) return;
   let questions = JSON.parse(localStorage.getItem("quizQuestions")) || [];
@@ -117,6 +314,58 @@ function deleteQuestion(index) {
   localStorage.setItem("quizQuestions", JSON.stringify(questions));
   renderQuestions();
 }
+
+// ---- EDIT ----
+function openEdit(index) {
+  const questions = JSON.parse(localStorage.getItem("quizQuestions")) || [];
+  const q = questions[index];
+  editIndex = index;
+  document.getElementById("edit-question").value = q.question;
+  ["er1","er2","er3","er4"].forEach((id, i) => {
+    document.getElementById(id).value = q.answers[i] || "";
+  });
+  ["ec1","ec2","ec3","ec4"].forEach((id, i) => {
+    document.getElementById(id).checked = q.correct.includes(i);
+  });
+  document.getElementById("edit-modal").classList.add("active");
+}
+
+function closeEdit() {
+  editIndex = null;
+  document.getElementById("edit-modal").classList.remove("active");
+}
+
+function saveEdit() {
+  if (editIndex === null) return;
+  const answers = [
+    document.getElementById("er1").value,
+    document.getElementById("er2").value,
+    document.getElementById("er3").value,
+    document.getElementById("er4").value,
+  ];
+  const correct = [];
+  ["ec1","ec2","ec3","ec4"].forEach((id, i) => {
+    if (document.getElementById(id).checked) correct.push(i);
+  });
+  const qText = document.getElementById("edit-question").value;
+
+  if (!qText || answers.some(a => a === "") || correct.length === 0) {
+    alert("⚠️ Remplis tout et coche au moins une bonne réponse");
+    return;
+  }
+
+  let questions = JSON.parse(localStorage.getItem("quizQuestions")) || [];
+  questions[editIndex] = { question: qText, answers, correct };
+  localStorage.setItem("quizQuestions", JSON.stringify(questions));
+  closeEdit();
+  renderQuestions();
+  alert("✅ Question modifiée !");
+}
+
+// Close modal on overlay click
+document.getElementById("edit-modal").addEventListener("click", function(e) {
+  if (e.target === this) closeEdit();
+});
 
 renderQuestions();
 </script>
