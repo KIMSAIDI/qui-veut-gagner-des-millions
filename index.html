@@ -145,15 +145,7 @@
 
   <button onclick="newGame()" class="newgame-btn">Nouvelle partie</button>
 
-  <!-- ÉCRAN DE DÉMARRAGE -->
-  <div id="start-screen" class="start-screen active">
-    <h1 class="logo">QUI VEUT GAGNER DES MILLIONS ?</h1>
-    <button onclick="startGame()" class="start-btn">🎬 LANCER LA PARTIE</button>
-  </div>
-
-  <!-- JEU (MASQUÉ AU DÉMARRAGE) -->
-  <div id="game-content" style="display: none;">
-    <h1 class="logo">QUI VEUT GAGNER DES MILLIONS ?</h1>
+  <h1 class="logo">QUI VEUT GAGNER DES MILLIONS ?</h1>
 
   <!-- TIMER -->
   <div class="timer-container">
@@ -195,8 +187,6 @@
     <button id="audience" class="lifeline-btn">Public</button>
     <button id="friend"   class="lifeline-btn">Ami</button>
   </div>
-  </div>
-
 </div>
 
 <script>
@@ -386,12 +376,7 @@ function startTimer() {
   }, 1000);
 }
 
-// Fonction pour démarrer le jeu
-function startGame() {
-  document.getElementById("start-screen").classList.remove("active");
-  document.getElementById("game-content").style.display = "block";
-  startTimer();
-}
+startTimer();
 
 // ===================== VALIDATION =====================
 validateBtn.onclick = () => {
