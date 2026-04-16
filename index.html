@@ -134,6 +134,12 @@
 </head>
 <body>
 
+<!-- START SCREEN OVERLAY -->
+<div class="start-overlay" id="start-overlay">
+  <h1 class="logo" style="margin-bottom: 28px; border: none; text-shadow: 0 0 20px rgba(255, 208, 0, 0.8), 0 0 40px rgba(255, 208, 0, 0.4);">QUI VEUT GAGNER DES MILLIONS ?</h1>
+  <button class="start-btn" onclick="startGameSession()">▶ LANCER LA PARTIE</button>
+</div>
+
 <!-- PAUSE OVERLAY -->
 <div class="pause-overlay" id="pause-overlay">
   <h2>⏸ PAUSE</h2>
@@ -141,7 +147,7 @@
   <button class="resume-btn" onclick="resumeGame()">REPRENDRE</button>
 </div>
 
-<div class="game-container">
+<div class="game-container" id="game-container" style="display: none;">
 
   <button onclick="newGame()" class="newgame-btn">Nouvelle partie</button>
 
@@ -376,7 +382,14 @@ function startTimer() {
   }, 1000);
 }
 
-startTimer();
+// ===================== START GAME FUNCTION =====================
+function startGameSession() {
+  document.getElementById("start-overlay").style.display = "none";
+  document.getElementById("game-container").style.display = "block";
+  startTimer();
+}
+
+// Initially, the timer is not started - it will start when startGameSession() is called
 
 // ===================== VALIDATION =====================
 validateBtn.onclick = () => {
@@ -454,6 +467,14 @@ function newGame() {
   localStorage.removeItem("usedAudience");
   localStorage.removeItem("usedFriend");
   location.reload();
+}
+
+// ===================== VÉRIFICATION AU DÉMARRAGE =====================
+// Si l'index de la question est supérieur à 0, c'est que la partie est déjà en cours
+if (currentQuestionIndex > 0) {
+  document.getElementById("start-overlay").style.display = "none";
+  document.getElementById("game-container").style.display = "block";
+  startTimer(); // On relance le timer automatiquement
 }
 </script>
 
