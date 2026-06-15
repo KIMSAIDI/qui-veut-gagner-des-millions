@@ -36,7 +36,7 @@
         sessions.forEach(s => {
           const card = document.createElement("div");
           card.className = "session-card";
-          const icons = ["🌊","🎓","🌍","🎬","🔬","🎵","⚽","🍔","🏛️","🚀"];
+          const ICONS = ["💊","🩻","🩺","🏥","⛑️","👨‍⚕️","👩‍⚕️","🎓","🫀","✏️","📚","💰","🧠","🏆","🦠","🧬","🧪","🔬","🌡️","🩸"];
           const icon  = s.icon || icons[Math.floor(Math.random() * icons.length)];
           const count = s.questions ? s.questions.length : 0;
           card.innerHTML = `
