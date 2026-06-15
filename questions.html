@@ -2,57 +2,427 @@
 <html lang="fr">
 <head>
   <meta charset="UTF-8">
-  <title>Créer une question</title>
+  <title>Gérer les sessions</title>
   <link rel="stylesheet" href="style.css">
+  <!-- Firebase -->
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+    import {
+      getFirestore, collection, getDocs, getDoc, doc, setDoc, deleteDoc, updateDoc
+    } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+    // ⚠️ REMPLACE CES VALEURS par celles de ton projet Firebase
+    const firebaseConfig = {
+      apiKey: "AIzaSyDhBAzzDS78qqqxtE9kcqcqVdqYBFkYkHM",
+      authDomain: "qui-veut-gagner-des-mill-54a74.firebaseapp.com",
+      projectId: "qui-veut-gagner-des-mill-54a74",
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db  = getFirestore(app);
+
+    const ICONS = ["💊","🩻","🩺","🏥","⛑️","👨‍⚕️","👩‍⚕️","🎓","🫀","✏️","📚","💰","🧠","🏆","🦠","🧬","🧪","🔬","🌡️","🩸"];
+    let sessions     = {};  // { sessionId: { name, icon, questions: [] } }
+    let activeId     = null;
+    let editQIndex   = null;
+
+    // ---- LOAD ALL SESSIONS ----
+    async function loadAll() {
+      const snap = await getDocs(collection(db, "sessions"));
+      sessions   = {};
+      snap.forEach(d => { sessions[d.id] = d.data(); });
+      renderSessionList();
+      if (activeId && sessions[activeId]) {
+        showSession(activeId);
+      } else {
+        document.getElementById("session-editor").style.display = "none";
+        document.getElementById("select-hint").style.display = "block";
+      }
+    }
+
+    // ---- RENDER SESSION LIST ----
+    function renderSessionList() {
+      const ul = document.getElementById("session-list");
+      ul.innerHTML = "";
+      Object.entries(sessions).forEach(([id, s]) => {
+        const li = document.createElement("li");
+        li.className = "session-item" + (id === activeId ? " active" : "");
+        li.innerHTML = `
+          <span class="session-item-icon">${s.icon || "❓"}</span>
+          <span class="session-item-name">${s.name}</span>
+          <span class="session-item-count">${(s.questions || []).length} Q</span>
+          <button class="delete-session-btn" title="Supprimer la session" onclick="confirmDeleteSession('${id}')">🗑️</button>
+        `;
+        li.addEventListener("click", e => {
+          if (e.target.closest(".delete-session-btn")) return;
+          showSession(id);
+        });
+        ul.appendChild(li);
+      });
+    }
+
+    // ---- SHOW SESSION EDITOR ----
+    window.showSession = function(id) {
+      activeId = id;
+      renderSessionList();
+      const s = sessions[id];
+      document.getElementById("select-hint").style.display    = "none";
+      document.getElementById("session-editor").style.display = "block";
+      document.getElementById("session-icon-display").textContent = s.icon || "❓";
+      // Met à jour le titre sans écraser l'icône
+      const titleEl = document.getElementById("editor-title");
+      titleEl.innerHTML = `<span id="session-icon-display">${s.icon || "❓"}</span><span>${s.name}</span>`;
+      renderQuestions(s.questions || []);
+      // Vide le formulaire d'ajout pour eviter la confusion entre sessions
+      document.getElementById("new-q").value = "";
+      ["new-a","new-b","new-c","new-d"].forEach(id => { document.getElementById(id).value = ""; });
+      ["new-c1","new-c2","new-c3","new-c4"].forEach(id => { document.getElementById(id).checked = false; });
+    };
+
+    // ---- RENDER QUESTIONS ----
+    function renderQuestions(qs) {
+      const ul = document.getElementById("questions-list");
+      ul.innerHTML = "";
+      qs.forEach((q, index) => {
+        const letters = ["A","B","C","D"];
+        const answersHTML = q.answers.map((a, i) => {
+          const ok = q.correct.includes(i);
+          return `<span style="
+            display:inline-block;margin:4px 6px 0 0;padding:3px 10px;border-radius:20px;font-size:13px;
+            border:1px solid ${ok ? 'rgba(0,230,118,0.5)' : 'rgba(255,255,255,0.1)'};
+            background:${ok ? 'rgba(0,230,118,0.12)' : 'rgba(255,255,255,0.04)'};
+            color:${ok ? '#00e676' : 'rgba(255,255,255,0.5)'};
+          "><strong>${letters[i]}.</strong> ${a}</span>`;
+        }).join("");
+
+        const li = document.createElement("li");
+        li.dataset.index = index;
+        li.draggable = true;
+        li.style.flexDirection = "column";
+        li.style.alignItems    = "flex-start";
+        li.innerHTML = `
+          <div style="display:flex;justify-content:space-between;width:100%;align-items:center;gap:10px;">
+            <span class="drag-handle" title="Glisser pour réordonner">⠿</span>
+            <span style="flex:1"><strong>Q${index+1} </strong>${q.question}</span>
+            <div class="action-btns">
+              <button class="edit-btn" onclick="openEditQ(${index})">✏️ Modifier</button>
+              <button onclick="deleteQuestion(${index})">❌</button>
+            </div>
+          </div>
+          <div style="margin-top:8px;padding-left:24px;">${answersHTML}</div>
+        `;
+        li.addEventListener("dragstart", dragStart);
+        li.addEventListener("dragover",  dragOver);
+        li.addEventListener("dragleave", dragLeave);
+        li.addEventListener("drop",      dragDrop);
+        li.addEventListener("dragend",   dragEnd);
+        ul.appendChild(li);
+      });
+    }
+
+    // ---- DRAG & DROP ----
+    let dragSrcIndex = null;
+    function dragStart(e) { dragSrcIndex = parseInt(this.dataset.index); this.classList.add("dragging"); e.dataTransfer.effectAllowed = "move"; }
+    function dragOver(e)  { e.preventDefault(); document.querySelectorAll("#questions-list li").forEach(l => l.classList.remove("drag-over")); this.classList.add("drag-over"); }
+    function dragLeave()  { this.classList.remove("drag-over"); }
+    async function dragDrop(e) {
+      e.stopPropagation();
+      const to = parseInt(this.dataset.index);
+      if (dragSrcIndex === null || dragSrcIndex === to) return;
+      const qs = sessions[activeId].questions;
+      const moved = qs.splice(dragSrcIndex, 1)[0];
+      qs.splice(to, 0, moved);
+      await saveSession();
+      dragSrcIndex = null;
+    }
+    function dragEnd() { document.querySelectorAll("#questions-list li").forEach(l => l.classList.remove("dragging","drag-over")); dragSrcIndex = null; }
+
+    // ---- ADD QUESTION ----
+    window.addQuestion = async function() {
+      if (!activeId) return;
+      const qs     = sessions[activeId].questions || [];
+      const text   = document.getElementById("new-q").value.trim();
+      const as     = ["new-a","new-b","new-c","new-d"].map(id => document.getElementById(id).value.trim());
+      const correct = [];
+      ["new-c1","new-c2","new-c3","new-c4"].forEach((id,i) => { if (document.getElementById(id).checked) correct.push(i); });
+
+      if (!text || as.some(a => !a) || correct.length === 0) {
+        alert("⚠️ Remplis tout et coche au moins une bonne réponse"); return;
+      }
+      if (qs.length >= 20) { alert("❌ Maximum 20 questions par session"); return; }
+
+      qs.push({ question: text, answers: as, correct });
+      sessions[activeId].questions = qs;
+      await saveSession();
+
+      document.getElementById("new-q").value = "";
+      ["new-a","new-b","new-c","new-d"].forEach(id => { document.getElementById(id).value = ""; });
+      ["new-c1","new-c2","new-c3","new-c4"].forEach(id => { document.getElementById(id).checked = false; });
+      alert(`✅ Question ajoutée (${qs.length}/20)`);
+    };
+
+    // ---- DELETE QUESTION ----
+    window.deleteQuestion = async function(i) {
+      if (!confirm("Supprimer cette question ?")) return;
+      sessions[activeId].questions.splice(i, 1);
+      await saveSession();
+    };
+
+    // ---- EDIT QUESTION ----
+    window.openEditQ = function(i) {
+      editQIndex = i;
+      const q = sessions[activeId].questions[i];
+      document.getElementById("eq-text").value = q.question;
+      ["eq-a","eq-b","eq-c","eq-d"].forEach((id, j) => { document.getElementById(id).value = q.answers[j] || ""; });
+      ["eq-c1","eq-c2","eq-c3","eq-c4"].forEach((id, j) => { document.getElementById(id).checked = q.correct.includes(j); });
+      document.getElementById("edit-modal").classList.add("active");
+    };
+    window.closeEditQ = function() { editQIndex = null; document.getElementById("edit-modal").classList.remove("active"); };
+    window.saveEditQ  = async function() {
+      if (editQIndex === null) return;
+      const text    = document.getElementById("eq-text").value.trim();
+      const as      = ["eq-a","eq-b","eq-c","eq-d"].map(id => document.getElementById(id).value.trim());
+      const correct = [];
+      ["eq-c1","eq-c2","eq-c3","eq-c4"].forEach((id,i) => { if (document.getElementById(id).checked) correct.push(i); });
+      if (!text || as.some(a => !a) || correct.length === 0) { alert("⚠️ Remplis tout et coche au moins une bonne réponse"); return; }
+      sessions[activeId].questions[editQIndex] = { question: text, answers: as, correct };
+      await saveSession();
+      closeEditQ();
+      alert("✅ Question modifiée !");
+    };
+
+    // ---- SAVE SESSION TO FIREBASE ----
+    async function saveSession() {
+      const savedId = activeId;
+      await setDoc(doc(db, "sessions", savedId), sessions[savedId]);
+      // Relit depuis Firebase pour garantir la synchro
+      const freshSnap = await getDoc(doc(db, "sessions", savedId));
+      if (freshSnap.exists()) sessions[savedId] = freshSnap.data();
+      renderQuestions(sessions[savedId].questions || []);
+      renderSessionList();
+    }
+
+    // ---- CREATE NEW SESSION ----
+    window.createSession = async function() {
+      const name = document.getElementById("new-session-name").value.trim();
+      const icon = document.getElementById("icon-selected").dataset.icon || "❓";
+      if (!name) { alert("⚠️ Donne un nom à la session"); return; }
+      const id  = "session_" + Date.now();
+      const obj = { name, icon, questions: [] };
+      await setDoc(doc(db, "sessions", id), obj);
+      sessions[id] = obj;
+      document.getElementById("new-session-name").value = "";
+      document.getElementById("create-modal").classList.remove("active");
+      await loadAll();
+      showSession(id);
+    };
+
+    // ---- DELETE SESSION ----
+    window.confirmDeleteSession = async function(id) {
+      if (!confirm(`Supprimer la session "${sessions[id].name}" et toutes ses questions ?`)) return;
+      await deleteDoc(doc(db, "sessions", id));
+      delete sessions[id];
+      if (activeId === id) { activeId = null; document.getElementById("session-editor").style.display = "none"; document.getElementById("select-hint").style.display = "block"; }
+      renderSessionList();
+    };
+
+    // ---- ICON PICKER ----
+    window.openCreate = function() {
+      const picker = document.getElementById("icon-picker");
+      picker.innerHTML = "";
+      ICONS.forEach(ic => {
+        const btn = document.createElement("button");
+        btn.className = "icon-option";
+        btn.textContent = ic;
+        btn.onclick = () => {
+          document.querySelectorAll(".icon-option").forEach(b => b.classList.remove("selected"));
+          btn.classList.add("selected");
+          document.getElementById("icon-selected").textContent = ic;
+          document.getElementById("icon-selected").dataset.icon = ic;
+        };
+        picker.appendChild(btn);
+      });
+      // select first
+      picker.querySelector(".icon-option").click();
+      document.getElementById("create-modal").classList.add("active");
+    };
+    window.closeCreate = function() { document.getElementById("create-modal").classList.remove("active"); };
+
+    // ---- CLOSE MODALS ON OVERLAY CLICK ----
+    document.addEventListener("DOMContentLoaded", () => {
+      document.getElementById("edit-modal").addEventListener("click",   e => { if (e.target === document.getElementById("edit-modal"))   closeEditQ();   });
+      document.getElementById("create-modal").addEventListener("click", e => { if (e.target === document.getElementById("create-modal")) closeCreate();  });
+      loadAll();
+    });
+  </script>
   <style>
+    /* ---- LAYOUT ---- */
+    .admin-layout {
+      position: relative;
+      z-index: 1;
+      display: flex;
+      min-height: 100vh;
+    }
+
+    /* ---- SIDEBAR ---- */
+    .sidebar {
+      width: 240px;
+      flex-shrink: 0;
+      border-right: 1px solid rgba(255,208,0,0.15);
+      padding: 24px 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      background: rgba(4,10,30,0.6);
+    }
+
+    .sidebar-logo {
+      font-family: 'Cinzel', serif;
+      font-size: 11px;
+      color: var(--gold);
+      letter-spacing: 2px;
+      opacity: 0.7;
+      margin-bottom: 12px;
+      padding-bottom: 12px;
+      border-bottom: 1px solid rgba(255,208,0,0.1);
+    }
+
+    .new-session-btn {
+      width: 100%;
+      padding: 10px 14px;
+      border-radius: 8px;
+      border: 1px dashed rgba(255,208,0,0.4);
+      background: rgba(255,208,0,0.04);
+      color: rgba(255,208,0,0.7);
+      font-family: 'Rajdhani', sans-serif;
+      font-size: 13px;
+      font-weight: 700;
+      letter-spacing: 0.5px;
+      cursor: pointer;
+      transition: all 0.2s;
+      text-align: left;
+      margin-bottom: 4px;
+    }
+    .new-session-btn:hover { background: rgba(255,208,0,0.1); border-color: var(--gold); }
+
+    #session-list { list-style: none; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+
+    .session-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 12px;
+      border-radius: 8px;
+      border: 1px solid transparent;
+      cursor: pointer;
+      transition: all 0.2s;
+      font-family: 'Rajdhani', sans-serif;
+      font-size: 13px;
+      font-weight: 600;
+    }
+    .session-item:hover        { background: rgba(255,208,0,0.06); border-color: rgba(255,208,0,0.2); }
+    .session-item.active       { background: rgba(255,208,0,0.1);  border-color: rgba(255,208,0,0.4); color: var(--gold); }
+    .session-item-icon         { font-size: 18px; }
+    .session-item-name         { flex: 1; }
+    .session-item-count        { font-size: 10px; color: rgba(255,255,255,0.3); font-family:'Cinzel',serif; }
+    .delete-session-btn {
+      background: none; border: none; cursor: pointer; font-size: 13px; opacity: 0.3;
+      padding: 2px 4px; transition: opacity 0.2s;
+    }
+    .delete-session-btn:hover  { opacity: 0.9; }
+
+    /* ---- EDITOR ---- */
+    .editor-area {
+      flex: 1;
+      padding: 28px 32px 48px;
+      max-width: 680px;
+    }
+
+    #editor-title {
+      font-family: 'Cinzel', serif;
+      font-size: 16px;
+      color: var(--gold);
+      letter-spacing: 1.5px;
+      margin-bottom: 24px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    #session-icon-display { font-size: 28px; }
+
+    #select-hint {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+      height: 60vh;
+      color: rgba(255,255,255,0.2);
+      font-family: 'Rajdhani', sans-serif;
+      font-size: 15px;
+    }
+
+    .section-divider {
+      border: none;
+      border-top: 1px solid rgba(255,208,0,0.1);
+      margin: 28px 0;
+    }
+
     /* ---- DRAG & DROP ---- */
+    #questions-list { list-style: none; padding: 0; display: flex; flex-direction: column; gap: 10px; margin-top: 16px; }
     #questions-list li {
+      background: linear-gradient(135deg, #0b1c52 0%, #06102e 100%);
+      border: 1px solid rgba(255,208,0,0.2);
+      border-radius: 8px;
+      padding: 12px 16px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 14px;
+      font-weight: 500;
+      text-align: left;
+      gap: 12px;
       cursor: grab;
       transition: opacity 0.2s, transform 0.15s, box-shadow 0.2s;
       user-select: none;
     }
     #questions-list li:active { cursor: grabbing; }
-    #questions-list li.dragging {
-      opacity: 0.4;
-      transform: scale(0.98);
-    }
-    #questions-list li.drag-over {
-      box-shadow: 0 0 0 2px rgba(255,208,0,0.7), 0 0 14px rgba(255,208,0,0.25);
-    }
-
-    .drag-handle {
-      color: rgba(255,208,0,0.35);
-      font-size: 16px;
-      cursor: grab;
-      flex-shrink: 0;
-      padding: 0 4px 0 0;
-      line-height: 1;
-      transition: color 0.2s;
-    }
+    #questions-list li.dragging   { opacity: 0.4; transform: scale(0.98); }
+    #questions-list li.drag-over  { box-shadow: 0 0 0 2px rgba(255,208,0,0.7); }
+    #questions-list li strong { color: var(--gold); font-family: 'Cinzel', serif; font-size: 12px; margin-right: 8px; }
+    .drag-handle { color: rgba(255,208,0,0.35); font-size: 16px; cursor: grab; flex-shrink: 0; }
     .drag-handle:hover { color: rgba(255,208,0,0.8); }
+    .action-btns { display: flex; flex-direction: column; gap: 5px; flex-shrink: 0; }
+    .edit-btn {
+      padding: 5px 12px; font-family: 'Rajdhani', sans-serif; font-size: 12px; font-weight: 700;
+      border-radius: 6px; border: 1px solid rgba(100,160,255,0.4); background: rgba(60,100,200,0.12);
+      color: #8ab4ff; cursor: pointer; transition: all 0.2s; white-space: nowrap;
+    }
+    .edit-btn:hover { background: rgba(60,100,200,0.3); border-color: #8ab4ff; }
+    #questions-list button:not(.edit-btn) {
+      padding: 5px 10px; font-family: 'Rajdhani', sans-serif; font-size: 12px; font-weight: 700;
+      border-radius: 6px; border: 1px solid rgba(244,67,54,0.4); background: rgba(244,67,54,0.12);
+      color: #ff7b6e; cursor: pointer; transition: all 0.2s; white-space: nowrap;
+    }
+    #questions-list button:not(.edit-btn):hover { background: rgba(244,67,54,0.3); }
 
-    /* ---- EDIT BUTTON ---- */
-    #questions-list .edit-btn {
-      padding: 5px 12px;
-      font-family: 'Rajdhani', sans-serif;
+    /* ---- ADD FORM ---- */
+    .add-form-box {
+      background: linear-gradient(160deg, #0c1e5a 0%, #060f30 100%);
+      border: 1px solid rgba(255,208,0,0.2);
+      border-radius: 10px;
+      padding: 22px 24px;
+    }
+    .add-form-title {
+      font-family: 'Cinzel', serif;
       font-size: 12px;
-      font-weight: 700;
-      border-radius: 6px;
-      border: 1px solid rgba(100,160,255,0.4);
-      background: rgba(60,100,200,0.12);
-      color: #8ab4ff;
-      cursor: pointer;
-      transition: all 0.2s ease;
-      white-space: nowrap;
-      flex-shrink: 0;
-    }
-    #questions-list .edit-btn:hover {
-      background: rgba(60,100,200,0.3);
-      border-color: #8ab4ff;
-      box-shadow: 0 0 10px rgba(100,160,255,0.25);
+      color: rgba(255,208,0,0.6);
+      letter-spacing: 2px;
+      margin-bottom: 16px;
     }
 
-    /* ---- EDIT MODAL ---- */
+    /* ---- MODALS ---- */
     .modal-overlay {
       display: none;
       position: fixed;
@@ -75,300 +445,130 @@
     .modal-box h3 {
       font-family: 'Cinzel', serif;
       color: var(--gold);
-      font-size: 16px;
+      font-size: 15px;
       letter-spacing: 1.5px;
       margin-bottom: 20px;
     }
-    .modal-actions {
-      display: flex;
-      gap: 12px;
-      justify-content: flex-end;
-      margin-top: 20px;
-    }
+    .modal-actions { display: flex; gap: 12px; justify-content: flex-end; margin-top: 20px; }
     .modal-cancel {
-      padding: 8px 20px;
-      border-radius: 8px;
-      border: 1px solid rgba(255,255,255,0.2);
-      background: rgba(255,255,255,0.06);
-      color: rgba(255,255,255,0.6);
-      font-family: 'Rajdhani', sans-serif;
-      font-size: 13px;
-      font-weight: 600;
-      cursor: pointer;
-      transition: all 0.2s;
+      padding: 8px 20px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.2);
+      background: rgba(255,255,255,0.06); color: rgba(255,255,255,0.6);
+      font-family: 'Rajdhani', sans-serif; font-size: 13px; font-weight: 600;
+      cursor: pointer; transition: all 0.2s;
     }
     .modal-cancel:hover { background: rgba(255,255,255,0.12); }
     .modal-save {
-      padding: 8px 22px;
-      border-radius: 8px;
-      border: none;
+      padding: 8px 22px; border-radius: 8px; border: none;
       background: linear-gradient(135deg, var(--gold) 0%, var(--gold-dark) 100%);
-      color: #080808;
-      font-family: 'Cinzel', serif;
-      font-size: 13px;
-      font-weight: 700;
-      letter-spacing: 1px;
-      cursor: pointer;
-      transition: all 0.2s;
+      color: #080808; font-family: 'Cinzel', serif; font-size: 13px; font-weight: 700;
+      letter-spacing: 1px; cursor: pointer; transition: all 0.2s;
     }
-    .modal-save:hover {
-      box-shadow: 0 0 16px rgba(255,208,0,0.4);
-      transform: translateY(-1px);
-    }
+    .modal-save:hover { box-shadow: 0 0 16px rgba(255,208,0,0.4); transform: translateY(-1px); }
 
-    .action-btns {
-      display: flex;
-      flex-direction: column;
-      gap: 6px;
-      flex-shrink: 0;
+    /* ---- ICON PICKER ---- */
+    #icon-picker { display: flex; flex-wrap: wrap; gap: 8px; margin: 16px 0; }
+    .icon-option {
+      font-size: 24px; width: 44px; height: 44px; border-radius: 8px;
+      border: 1px solid rgba(255,255,255,0.1); background: rgba(255,255,255,0.05);
+      cursor: pointer; transition: all 0.15s; display: flex; align-items: center; justify-content: center;
+    }
+    .icon-option:hover   { border-color: rgba(255,208,0,0.5); background: rgba(255,208,0,0.08); }
+    .icon-option.selected { border-color: var(--gold); background: rgba(255,208,0,0.15); box-shadow: 0 0 10px rgba(255,208,0,0.3); }
+
+    .home-link {
+      display: inline-flex; align-items: center; gap: 6px; margin-bottom: 20px;
+      font-family: 'Rajdhani', sans-serif; font-size: 13px; color: rgba(255,208,0,0.5);
+      text-decoration: none; transition: color 0.2s;
+    }
+    .home-link:hover { color: var(--gold); }
+
+    @media (max-width: 640px) {
+      .admin-layout { flex-direction: column; }
+      .sidebar { width: 100%; border-right: none; border-bottom: 1px solid rgba(255,208,0,0.15); }
+      .editor-area { padding: 20px 16px; }
     }
   </style>
 </head>
 <body>
 
-<!-- EDIT MODAL -->
+<!-- EDIT QUESTION MODAL -->
 <div class="modal-overlay" id="edit-modal">
   <div class="modal-box">
     <h3>✏️ MODIFIER LA QUESTION</h3>
-    <textarea id="edit-question" placeholder="Écris la question ici..."></textarea>
-    <div class="answer-line">
-      <input type="checkbox" id="ec1">
-      <input type="text" id="er1" placeholder="Réponse A">
-    </div>
-    <div class="answer-line">
-      <input type="checkbox" id="ec2">
-      <input type="text" id="er2" placeholder="Réponse B">
-    </div>
-    <div class="answer-line">
-      <input type="checkbox" id="ec3">
-      <input type="text" id="er3" placeholder="Réponse C">
-    </div>
-    <div class="answer-line">
-      <input type="checkbox" id="ec4">
-      <input type="text" id="er4" placeholder="Réponse D">
-    </div>
+    <textarea id="eq-text" placeholder="La question…"></textarea>
+    <div class="answer-line"><input type="checkbox" id="eq-c1"><input type="text" id="eq-a" placeholder="Réponse A"></div>
+    <div class="answer-line"><input type="checkbox" id="eq-c2"><input type="text" id="eq-b" placeholder="Réponse B"></div>
+    <div class="answer-line"><input type="checkbox" id="eq-c3"><input type="text" id="eq-c" placeholder="Réponse C"></div>
+    <div class="answer-line"><input type="checkbox" id="eq-c4"><input type="text" id="eq-d" placeholder="Réponse D"></div>
     <p class="info">Coche la/les bonne(s) réponse(s)</p>
     <div class="modal-actions">
-      <button class="modal-cancel" onclick="closeEdit()">Annuler</button>
-      <button class="modal-save" onclick="saveEdit()">ENREGISTRER</button>
+      <button class="modal-cancel" onclick="closeEditQ()">Annuler</button>
+      <button class="modal-save"   onclick="saveEditQ()">ENREGISTRER</button>
     </div>
   </div>
 </div>
 
-<div class="game-container">
-  <h1 class="logo">CRÉER UNE QUESTION</h1>
-
-  <textarea id="question" placeholder="Écris la question ici..."></textarea>
-
-  <div class="answer-line">
-    <input type="checkbox" id="c1">
-    <input type="text" id="r1" placeholder="Réponse A">
+<!-- CREATE SESSION MODAL -->
+<div class="modal-overlay" id="create-modal">
+  <div class="modal-box">
+    <h3>🗂️ NOUVELLE SESSION</h3>
+    <input type="text" id="new-session-name" placeholder="Nom de la session">
+    <p class="info" style="margin-top:4px;">Choisis une icône</p>
+    <div id="icon-picker"></div>
+    <div style="display:flex;align-items:center;gap:10px;margin-top:4px;">
+      <span id="icon-selected" data-icon="❓" style="font-size:28px;">❓</span>
+      <span style="font-size:12px;color:rgba(255,255,255,0.35);font-family:'Rajdhani',sans-serif;">Icône sélectionnée</span>
+    </div>
+    <div class="modal-actions">
+      <button class="modal-cancel" onclick="closeCreate()">Annuler</button>
+      <button class="modal-save"   onclick="createSession()">CRÉER</button>
+    </div>
   </div>
-  <div class="answer-line">
-    <input type="checkbox" id="c2">
-    <input type="text" id="r2" placeholder="Réponse B">
-  </div>
-  <div class="answer-line">
-    <input type="checkbox" id="c3">
-    <input type="text" id="r3" placeholder="Réponse C">
-  </div>
-  <div class="answer-line">
-    <input type="checkbox" id="c4">
-    <input type="text" id="r4" placeholder="Réponse D">
-  </div>
-
-  <p class="info">Coche la/les bonne(s) réponse(s)</p>
-
-  <button class="validate-btn" onclick="saveQuestion()">ENREGISTRER</button>
-
-  <hr>
-
-  <h2>Questions enregistrées <span style="font-family:'Rajdhani',sans-serif;font-size:13px;color:rgba(255,255,255,0.35);font-weight:400;letter-spacing:0;"></span></h2>
-  <ul id="questions-list"></ul>
 </div>
 
-<script>
-let editIndex = null;
+<div class="admin-layout">
 
-// ---- SAVE NEW QUESTION ----
-function saveQuestion() {
-  let questions = JSON.parse(localStorage.getItem("quizQuestions")) || [];
-  if (questions.length >= 20) {
-    alert("❌ Tu as déjà 20 questions enregistrées");
-    return;
-  }
-  const answers = [r1.value, r2.value, r3.value, r4.value];
-  const correct = [];
-  if (c1.checked) correct.push(0);
-  if (c2.checked) correct.push(1);
-  if (c3.checked) correct.push(2);
-  if (c4.checked) correct.push(3);
-  if (!question.value || answers.some(a => a === "") || correct.length === 0) {
-    alert("⚠️ Remplis tout et coche au moins une bonne réponse");
-    return;
-  }
-  questions.push({ question: question.value, answers, correct });
-  localStorage.setItem("quizQuestions", JSON.stringify(questions));
-  alert(`✅ Question ajoutée (${questions.length}/20)`);
-  question.value = "";
-  [r1,r2,r3,r4].forEach(i => i.value = "");
-  [c1,c2,c3,c4].forEach(c => c.checked = false);
-  renderQuestions();
-}
+  <!-- SIDEBAR -->
+  <aside class="sidebar">
+    <div class="sidebar-logo">⚙️ SESSIONS</div>
+    <button class="new-session-btn" onclick="openCreate()">＋ Nouvelle session</button>
+    <ul id="session-list"></ul>
+    <div style="margin-top:auto; padding-top:16px; border-top:1px solid rgba(255,208,0,0.1);">
+      <a href="home.html" class="admin-link" style="display:block; text-align:center; padding:9px; border-radius:8px; border:1px solid rgba(255,208,0,0.2); color:rgba(255,208,0,0.5); font-family:'Rajdhani',sans-serif; font-size:12px; font-weight:700; letter-spacing:1px; text-decoration:none; transition:all 0.2s;">
+        ← Accueil
+      </a>
+    </div>
+  </aside>
 
-// ---- RENDER QUESTIONS ----
-function renderQuestions() {
-  const questions = JSON.parse(localStorage.getItem("quizQuestions")) || [];
-  const list = document.getElementById("questions-list");
-  list.innerHTML = "";
+  <!-- EDITOR -->
+  <main class="editor-area">
 
-  questions.forEach((q, index) => {
-    const letters = ["A", "B", "C", "D"];
-    const answersHTML = q.answers.map((a, i) => {
-      const isCorrect = q.correct.includes(i);
-      return `<span style="
-        display: inline-block;
-        margin: 4px 6px 0 0;
-        padding: 3px 10px;
-        border-radius: 20px;
-        font-size: 13px;
-        border: 1px solid ${isCorrect ? 'rgba(0,230,118,0.5)' : 'rgba(255,255,255,0.1)'};
-        background: ${isCorrect ? 'rgba(0,230,118,0.12)' : 'rgba(255,255,255,0.04)'};
-        color: ${isCorrect ? '#00e676' : 'rgba(255,255,255,0.5)'};
-      "><strong>${letters[i]}.</strong> ${a}</span>`;
-    }).join("");
+    <div id="select-hint">
+      <span style="font-size:40px;">👈</span>
+      <span>Sélectionne une session ou crée-en une</span>
+    </div>
 
-    const li = document.createElement("li");
-    li.style.flexDirection = "column";
-    li.style.alignItems = "flex-start";
-    li.dataset.index = index;
-    li.draggable = true;
-    li.innerHTML = `
-      <div style="display:flex; justify-content:space-between; width:100%; align-items:center; gap:10px;">
-        <span class="drag-handle" title="Glisser pour déplacer">⠿</span>
-        <span style="flex:1"><strong>Q${index+1} </strong>${q.question}</span>
-        <div class="action-btns">
-          <button class="edit-btn" onclick="openEdit(${index})">✏️ Modifier</button>
-          <button onclick="deleteQuestion(${index})">❌ Supprimer</button>
-        </div>
+    <div id="session-editor" style="display:none;">
+      <div id="editor-title"><span id="session-icon-display"></span><span></span></div>
+
+      <!-- ADD QUESTION FORM -->
+      <div class="add-form-box">
+        <p class="add-form-title">AJOUTER UNE QUESTION</p>
+        <textarea id="new-q" placeholder="Écris la question ici…"></textarea>
+        <div class="answer-line"><input type="checkbox" id="new-c1"><input type="text" id="new-a" placeholder="Réponse A"></div>
+        <div class="answer-line"><input type="checkbox" id="new-c2"><input type="text" id="new-b" placeholder="Réponse B"></div>
+        <div class="answer-line"><input type="checkbox" id="new-c3"><input type="text" id="new-c" placeholder="Réponse C"></div>
+        <div class="answer-line"><input type="checkbox" id="new-c4"><input type="text" id="new-d" placeholder="Réponse D"></div>
+        <p class="info">Coche la/les bonne(s) réponse(s)</p>
+        <button class="validate-btn" style="margin-bottom:0;" onclick="addQuestion()">ENREGISTRER</button>
       </div>
-      <div style="margin-top: 8px; padding-left: 24px;">${answersHTML}</div>
-    `;
 
-    // --- Drag events ---
-    li.addEventListener("dragstart", handleDragStart);
-    li.addEventListener("dragover", handleDragOver);
-    li.addEventListener("dragleave", handleDragLeave);
-    li.addEventListener("drop", handleDrop);
-    li.addEventListener("dragend", handleDragEnd);
-
-    list.appendChild(li);
-  });
-}
-
-// ---- DRAG & DROP ----
-let dragSrcIndex = null;
-
-function handleDragStart(e) {
-  dragSrcIndex = parseInt(this.dataset.index);
-  this.classList.add("dragging");
-  e.dataTransfer.effectAllowed = "move";
-}
-
-function handleDragOver(e) {
-  e.preventDefault();
-  e.dataTransfer.dropEffect = "move";
-  document.querySelectorAll("#questions-list li").forEach(li => li.classList.remove("drag-over"));
-  this.classList.add("drag-over");
-}
-
-function handleDragLeave() {
-  this.classList.remove("drag-over");
-}
-
-function handleDrop(e) {
-  e.stopPropagation();
-  const targetIndex = parseInt(this.dataset.index);
-  if (dragSrcIndex === null || dragSrcIndex === targetIndex) return;
-
-  let questions = JSON.parse(localStorage.getItem("quizQuestions")) || [];
-  const moved = questions.splice(dragSrcIndex, 1)[0];
-  questions.splice(targetIndex, 0, moved);
-  localStorage.setItem("quizQuestions", JSON.stringify(questions));
-  dragSrcIndex = null;
-  renderQuestions();
-}
-
-function handleDragEnd() {
-  document.querySelectorAll("#questions-list li").forEach(li => {
-    li.classList.remove("dragging", "drag-over");
-  });
-  dragSrcIndex = null;
-}
-
-// ---- DELETE ----
-function deleteQuestion(index) {
-  if (!confirm("Voulez-vous vraiment supprimer cette question ?")) return;
-  let questions = JSON.parse(localStorage.getItem("quizQuestions")) || [];
-  questions.splice(index, 1);
-  localStorage.setItem("quizQuestions", JSON.stringify(questions));
-  renderQuestions();
-}
-
-// ---- EDIT ----
-function openEdit(index) {
-  const questions = JSON.parse(localStorage.getItem("quizQuestions")) || [];
-  const q = questions[index];
-  editIndex = index;
-  document.getElementById("edit-question").value = q.question;
-  ["er1","er2","er3","er4"].forEach((id, i) => {
-    document.getElementById(id).value = q.answers[i] || "";
-  });
-  ["ec1","ec2","ec3","ec4"].forEach((id, i) => {
-    document.getElementById(id).checked = q.correct.includes(i);
-  });
-  document.getElementById("edit-modal").classList.add("active");
-}
-
-function closeEdit() {
-  editIndex = null;
-  document.getElementById("edit-modal").classList.remove("active");
-}
-
-function saveEdit() {
-  if (editIndex === null) return;
-  const answers = [
-    document.getElementById("er1").value,
-    document.getElementById("er2").value,
-    document.getElementById("er3").value,
-    document.getElementById("er4").value,
-  ];
-  const correct = [];
-  ["ec1","ec2","ec3","ec4"].forEach((id, i) => {
-    if (document.getElementById(id).checked) correct.push(i);
-  });
-  const qText = document.getElementById("edit-question").value;
-
-  if (!qText || answers.some(a => a === "") || correct.length === 0) {
-    alert("⚠️ Remplis tout et coche au moins une bonne réponse");
-    return;
-  }
-
-  let questions = JSON.parse(localStorage.getItem("quizQuestions")) || [];
-  questions[editIndex] = { question: qText, answers, correct };
-  localStorage.setItem("quizQuestions", JSON.stringify(questions));
-  closeEdit();
-  renderQuestions();
-  alert("✅ Question modifiée !");
-}
-
-// Close modal on overlay click
-document.getElementById("edit-modal").addEventListener("click", function(e) {
-  if (e.target === this) closeEdit();
-});
-
-renderQuestions();
-</script>
+      <hr class="section-divider">
+      <h2 style="margin:0 0 4px;font-size:15px;">Questions enregistrées</h2>
+      <ul id="questions-list"></ul>
+    </div>
+  </main>
+</div>
 
 </body>
 </html>
