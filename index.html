@@ -4,12 +4,10 @@
 <meta charset="UTF-8">
 <title>Qui veut gagner des millions ?</title>
 <link rel="stylesheet" href="style.css">
-<!-- Firebase -->
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
   import { getFirestore, doc, getDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
-  // ⚠️ REMPLACE CES VALEURS par celles de ton projet Firebase
   const firebaseConfig = {
     apiKey: "AIzaSyDhBAzzDS78qqqxtE9kcqcqVdqYBFkYkHM",
     authDomain: "qui-veut-gagner-des-mill-54a74.firebaseapp.com",
@@ -23,9 +21,13 @@
     const sessionId   = sessionStorage.getItem("activeSessionId");
     const sessionName = sessionStorage.getItem("activeSessionName") || "Quiz";
 
-    if (!sessionId) {
-      window.location.href = "home.html";
-      return;
+    if (!sessionId) { window.location.href = "home.html"; return; }
+
+    // Reset progression si changement de session
+    const lastId = sessionStorage.getItem("lastSessionId");
+    if (lastId !== sessionId) {
+      ["currentQuestionIndex","currentLevel","usedFifty","usedAudience","usedFriend"].forEach(k => sessionStorage.removeItem(k));
+      sessionStorage.setItem("lastSessionId", sessionId);
     }
 
     document.querySelectorAll(".logo").forEach(el => el.textContent = sessionName.toUpperCase());
@@ -41,91 +43,49 @@
       return;
     }
 
-    // signal that data is ready
     document.dispatchEvent(new Event("quiz-ready"));
   }
 
   loadSession();
 </script>
 <style>
-/* ---- MONEY + GAUGE ROW ---- */
-.money-gauge-row {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 20px;
-  margin: 22px 0 6px;
-  flex-wrap: wrap;
-}
-.money {
-  font-family: 'Cinzel', serif;
-  font-size: 22px;
-  font-weight: 700;
-  color: var(--gold);
-  text-shadow: 0 0 16px rgba(255,208,0,0.6);
-  white-space: nowrap;
-}
-.gauge-container { flex: 1; min-width: 180px; max-width: 340px; }
-.gauge-labels    { display: flex; justify-content: space-between; margin-bottom: 5px; }
+.money-gauge-row { display:flex; align-items:center; justify-content:center; gap:20px; margin:22px 0 6px; flex-wrap:wrap; }
+.money { font-family:'Cinzel',serif; font-size:22px; font-weight:700; color:var(--gold); text-shadow:0 0 16px rgba(255,208,0,0.6); white-space:nowrap; }
+.gauge-container { flex:1; min-width:180px; max-width:340px; }
+.gauge-labels { display:flex; justify-content:space-between; margin-bottom:5px; }
 .gauge-label-left  { font-family:'Cinzel',serif; font-size:9px; color:rgba(255,255,255,0.35); letter-spacing:0.5px; }
-.gauge-label-right { font-family:'Cinzel',serif; font-size:9px; color:rgba(255,208,0,0.6);   letter-spacing:0.5px; }
-.gauge-track {
-  position: relative; width: 100%; height: 7px;
-  background: rgba(255,255,255,0.07); border-radius: 4px; overflow: hidden;
-}
-.gauge-fill   { height:100%; border-radius:4px; background:linear-gradient(90deg,#1a6b2a,#4caf50,#ffd000); transition:width 0.6s ease; }
+.gauge-label-right { font-family:'Cinzel',serif; font-size:9px; color:rgba(255,208,0,0.6); letter-spacing:0.5px; }
+.gauge-track { position:relative; width:100%; height:7px; background:rgba(255,255,255,0.07); border-radius:4px; overflow:hidden; }
+.gauge-fill  { height:100%; border-radius:4px; background:linear-gradient(90deg,#1a6b2a,#4caf50,#ffd000); transition:width 0.6s ease; }
 .gauge-marker { position:absolute; top:0; width:2px; height:100%; background:rgba(0,230,118,0.7); }
-.gauge-steps  { display:flex; justify-content:space-between; margin-top:5px; }
-.gauge-step   { font-family:'Cinzel',serif; font-size:8px; color:rgba(255,255,255,0.25); text-align:center; flex:1; transition:color 0.3s; }
+.gauge-steps { display:flex; justify-content:space-between; margin-top:5px; }
+.gauge-step  { font-family:'Cinzel',serif; font-size:8px; color:rgba(255,255,255,0.25); text-align:center; flex:1; transition:color 0.3s; }
 .gauge-step.reached    { color:rgba(255,208,0,0.65); }
 .gauge-step.guaranteed { color:rgba(0,230,118,0.85); font-weight:700; }
 .gauge-step.current    { color:#ffd000; text-shadow:0 0 7px rgba(255,208,0,0.7); }
-.guaranteed-badge {
-  display:inline-block; background:rgba(0,230,118,0.15); border:1px solid rgba(0,230,118,0.4);
-  border-radius:20px; padding:2px 10px; font-size:10px; font-family:'Cinzel',serif;
-  color:#00e676; margin-left:8px; vertical-align:middle; white-space:nowrap;
-}
-/* PAUSE */
-.pause-overlay {
-  display:none; position:fixed; inset:0; background:rgba(2,8,24,0.88);
-  z-index:100; align-items:center; justify-content:center; flex-direction:column; gap:16px;
-}
+.guaranteed-badge { display:inline-block; background:rgba(0,230,118,0.15); border:1px solid rgba(0,230,118,0.4); border-radius:20px; padding:2px 10px; font-size:10px; font-family:'Cinzel',serif; color:#00e676; margin-left:8px; vertical-align:middle; white-space:nowrap; }
+.pause-overlay { display:none; position:fixed; inset:0; background:rgba(2,8,24,0.88); z-index:100; align-items:center; justify-content:center; flex-direction:column; gap:16px; }
 .pause-overlay.active { display:flex; }
 .pause-overlay h2 { font-family:'Cinzel',serif; color:var(--gold); font-size:28px; letter-spacing:3px; text-shadow:0 0 20px rgba(255,208,0,0.5); }
 .pause-joker-msg { font-family:'Rajdhani',sans-serif; font-size:17px; color:rgba(255,255,255,0.75); max-width:420px; text-align:center; line-height:1.5; }
-.resume-btn {
-  margin-top:8px; padding:12px 36px; border-radius:40px; border:1px solid var(--gold);
-  background:linear-gradient(135deg,var(--gold) 0%,var(--gold-dark) 100%); color:#080808;
-  font-family:'Cinzel',serif; font-size:15px; font-weight:700; letter-spacing:2px; cursor:pointer; transition:all 0.2s;
-}
+.resume-btn { margin-top:8px; padding:12px 36px; border-radius:40px; border:1px solid var(--gold); background:linear-gradient(135deg,var(--gold) 0%,var(--gold-dark) 100%); color:#080808; font-family:'Cinzel',serif; font-size:15px; font-weight:700; letter-spacing:2px; cursor:pointer; transition:all 0.2s; }
 .resume-btn:hover { box-shadow:0 0 28px rgba(255,208,0,0.5); transform:translateY(-2px); }
-
-/* BACK LINK */
-.back-link {
-  position: absolute;
-  top: 16px; left: 16px;
-  font-family: 'Rajdhani', sans-serif;
-  font-size: 13px;
-  color: rgba(255,208,0,0.4);
-  text-decoration: none;
-  display: flex; align-items: center; gap: 5px;
-  transition: color 0.2s;
-  z-index: 2;
-}
-.back-link:hover { color: var(--gold); }
+.back-link { position:absolute; top:16px; left:16px; font-family:'Rajdhani',sans-serif; font-size:13px; color:rgba(255,208,0,0.4); text-decoration:none; display:flex; align-items:center; gap:5px; transition:color 0.2s; z-index:2; }
+.back-link:hover { color:var(--gold); }
+@keyframes fadeIn { from { opacity:0; transform:translateY(6px); } to { opacity:1; transform:translateY(0); } }
+.fade-in { animation: fadeIn 0.3s ease; }
 </style>
 </head>
 <body>
 
 <a href="home.html" class="back-link">← Sessions</a>
 
-<!-- START SCREEN -->
-<div class="start-overlay" id="start-overlay">
-  <h1 class="logo" style="margin-bottom:28px;border:none;text-shadow:0 0 20px rgba(255,208,0,0.8),0 0 40px rgba(255,208,0,0.4);">CHARGEMENT…</h1>
+<!-- START SCREEN : caché par défaut, jamais visible entre les questions -->
+<div class="start-overlay" id="start-overlay" style="display:none;">
+  <h1 class="logo" style="margin-bottom:28px;border:none;">PRÊT ?</h1>
   <button class="start-btn" onclick="startGameSession()">▶ LANCER LA PARTIE</button>
 </div>
 
-<!-- PAUSE -->
 <div class="pause-overlay" id="pause-overlay">
   <h2>⏸ PAUSE</h2>
   <div class="pause-joker-msg" id="pause-joker-msg"></div>
@@ -134,7 +94,7 @@
 
 <div class="game-container" id="game-container" style="display:none; position:relative;">
   <button onclick="newGame()" class="newgame-btn">Nouvelle partie</button>
-  <h1 class="logo">QUIZ</h1>
+  <h1 class="logo" id="session-title">QUIZ</h1>
 
   <div class="timer-container">
     <svg class="timer-ring" viewBox="0 0 120 120">
@@ -144,7 +104,7 @@
     <span id="timer-display" class="timer-display">60</span>
   </div>
 
-  <div class="question-box"><p id="question"></p></div>
+  <div class="question-box" id="question-box"><p id="question"></p></div>
   <div id="answers" class="answers-grid"></div>
 
   <div class="money-gauge-row">
@@ -179,215 +139,266 @@ const CIRCUMFERENCE     = 2 * Math.PI * 50;
 const moneyLevels       = [0,100,200,300,500,1000,2000,4000,8000,16000,32000,64000,125000,250000,500000,1000000];
 const GUARANTEED_LEVELS = [4, 10];
 
-let questions = [];
+let questions            = [];
 let currentLevel         = 0;
 let currentQuestionIndex = 0;
-let data = null;
+let timerInterval        = null;
+let timerExpired         = false;
+let isPaused             = false;
+let timeLeft             = TIMER_DURATION;
+let selected             = [];
+let currentButtons       = [];
 
-// Wait for Firebase to load questions
+// ── INIT (une seule fois après chargement Firebase) ──────────────────────────
 document.addEventListener("quiz-ready", () => {
   questions            = window.QUIZ_QUESTIONS;
   currentLevel         = Number(sessionStorage.getItem("currentLevel")) || 0;
   currentQuestionIndex = Number(sessionStorage.getItem("currentQuestionIndex")) || 0;
 
-  if (!questions[currentQuestionIndex]) {
-    alert("Plus de questions !"); window.location.href = "home.html"; return;
-  }
+  // sécurité : si l'index dépasse le nombre de questions, on repart à 0
+  if (currentQuestionIndex >= questions.length) currentQuestionIndex = 0;
 
-  data = questions[currentQuestionIndex];
-  initGame();
+  if (sessionStorage.getItem("usedFifty")    === "true") document.getElementById("fifty").disabled    = true;
+  if (sessionStorage.getItem("usedAudience") === "true") document.getElementById("audience").disabled = true;
+  if (sessionStorage.getItem("usedFriend")   === "true") document.getElementById("friend").disabled   = true;
+
+  buildGauge();
+  updateGauge();
+
+  document.getElementById("validate").onclick = onValidate;
+  document.getElementById("reset").onclick    = onReset;
+  document.getElementById("fifty").onclick    = onFifty;
+  document.getElementById("audience").onclick = () => { document.getElementById("audience").disabled=true; sessionStorage.setItem("usedAudience","true"); pauseGame(""); };
+  document.getElementById("friend").onclick   = () => { document.getElementById("friend").disabled=true;   sessionStorage.setItem("usedFriend","true");   pauseGame(""); };
+
+  // Affiche l'écran de départ SEULEMENT pour la toute première question
+  if (currentQuestionIndex === 0) {
+    document.getElementById("start-overlay").style.display = "flex";
+  } else {
+    showGame();
+    loadQuestion();
+  }
 });
 
-function initGame() {
-  const questionEl  = document.getElementById("question");
-  const answersEl   = document.getElementById("answers");
-  const validateBtn = document.getElementById("validate");
-  const timerCircle = document.getElementById("timer-circle");
-  const timerDisp   = document.getElementById("timer-display");
-  const moneyEl     = document.getElementById("money");
+// ── LANCER LA PARTIE ─────────────────────────────────────────────────────────
+window.startGameSession = function() {
+  document.getElementById("start-overlay").style.display = "none";
+  showGame();
+  loadQuestion();
+};
 
-  timerCircle.style.strokeDasharray  = CIRCUMFERENCE;
-  timerCircle.style.strokeDashoffset = 0;
+function showGame() {
+  document.getElementById("game-container").style.display = "block";
+}
 
-  const fiftyBtn    = document.getElementById("fifty");
-  const audienceBtn = document.getElementById("audience");
-  const friendBtn   = document.getElementById("friend");
+// ── CHARGER UNE QUESTION (sans aucun reload) ──────────────────────────────────
+function loadQuestion() {
+  if (currentQuestionIndex >= questions.length) {
+    endGame(); return;
+  }
 
-  if (sessionStorage.getItem("usedFifty")    === "true") fiftyBtn.disabled    = true;
-  if (sessionStorage.getItem("usedAudience") === "true") audienceBtn.disabled = true;
-  if (sessionStorage.getItem("usedFriend")   === "true") friendBtn.disabled   = true;
+  const data = questions[currentQuestionIndex];
 
-  let selected     = [];
-  const buttons    = [];
-  let timeLeft     = TIMER_DURATION;
-  let timerInterval = null;
-  let timerExpired = false;
-  let isPaused     = false;
+  // Réinitialise l'état
+  clearInterval(timerInterval); timerInterval = null;
+  timerExpired = false; isPaused = false;
+  timeLeft = TIMER_DURATION; selected = []; currentButtons = [];
 
-  questionEl.innerText = data.question;
+  // Timer visuel reset
+  const circle = document.getElementById("timer-circle");
+  circle.style.strokeDasharray  = CIRCUMFERENCE;
+  circle.style.strokeDashoffset = 0;
+  circle.style.stroke = "#ffb703";
+  circle.classList.remove("pulse");
+  const timerDisp = document.getElementById("timer-display");
+  timerDisp.textContent = TIMER_DURATION;
+  timerDisp.style.color = "#ffb703";
 
-  data.answers.forEach((answer, index) => {
+  // Bouton valider reset
+  document.getElementById("validate").disabled = false;
+
+  // Question — animation fade
+  const qBox = document.getElementById("question-box");
+  const qEl  = document.getElementById("question");
+  qEl.textContent = data.question;
+  qBox.classList.remove("fade-in");
+  void qBox.offsetWidth;
+  qBox.classList.add("fade-in");
+
+  // Réponses — animation fade
+  const answersEl = document.getElementById("answers");
+  answersEl.innerHTML = "";
+  answersEl.classList.remove("fade-in");
+  void answersEl.offsetWidth;
+  answersEl.classList.add("fade-in");
+
+  ["A","B","C","D"].forEach((letter, index) => {
     const btn = document.createElement("button");
     btn.className = "answer-btn";
-    const letters = ["A","B","C","D"];
-    btn.innerHTML = `<span class="answer-letter">${letters[index]}</span><span class="answer-text">${answer}</span>`;
+    btn.innerHTML = `<span class="answer-letter">${letter}</span><span class="answer-text">${data.answers[index]}</span>`;
     btn.onclick = () => {
       btn.classList.toggle("selected");
-      if (selected.includes(index)) selected.splice(selected.indexOf(index),1);
+      if (selected.includes(index)) selected.splice(selected.indexOf(index), 1);
       else selected.push(index);
     };
     answersEl.appendChild(btn);
-    buttons.push(btn);
+    currentButtons.push(btn);
   });
 
-  // GAUGE
-  function getGuaranteedFloor(level) {
-    let f = 0;
-    GUARANTEED_LEVELS.forEach(g => { if (level >= g) f = g; });
-    return f;
+  startTimer(data);
+}
+
+// ── VALIDER ───────────────────────────────────────────────────────────────────
+function onValidate() {
+  if (timerExpired || isPaused) return;
+  const data = questions[currentQuestionIndex];
+  clearInterval(timerInterval); timerInterval = null;
+
+  const ok = selected.length === data.correct.length && selected.every(i => data.correct.includes(i));
+
+  currentButtons.forEach((b, i) => {
+    if (data.correct.includes(i)) b.classList.add("correct");
+    else if (selected.includes(i)) b.classList.add("wrong");
+    b.disabled = true;
+  });
+  document.getElementById("validate").disabled = true;
+
+  if (ok) {
+    currentLevel = Math.min(currentLevel + 1, moneyLevels.length - 1);
+  } else {
+    currentLevel = Math.max(getGuaranteedFloor(currentLevel), currentLevel - 1);
   }
-  function buildGauge() {
-    const track = document.getElementById("gauge-track");
-    GUARANTEED_LEVELS.forEach(g => {
-      const m = document.createElement("div");
-      m.className = "gauge-marker";
-      m.style.left = (g / (moneyLevels.length-1)) * 100 + "%";
-      track.appendChild(m);
-    });
-    const di = [0,4,5,7,10,11,13,15];
-    const stepsEl = document.getElementById("gauge-steps");
-    stepsEl.innerHTML = "";
-    di.forEach(i => {
-      const div = document.createElement("div");
-      div.className = "gauge-step" + (GUARANTEED_LEVELS.includes(i) ? " guaranteed" : "");
-      div.id = `gs-${i}`;
-      const v = moneyLevels[i];
-      div.textContent = v>=1000000 ? "1M€" : v>=1000 ? (v/1000)+"k" : v+"€";
-      stepsEl.appendChild(div);
-    });
+  updateGauge();
+  sessionStorage.setItem("currentLevel", currentLevel);
+
+  setTimeout(() => {
+    currentQuestionIndex++;
+    sessionStorage.setItem("currentQuestionIndex", currentQuestionIndex);
+    loadQuestion();
+  }, 1500);
+}
+
+// ── TIMER ─────────────────────────────────────────────────────────────────────
+function startTimer(data) {
+  updateTimerUI();
+  timerInterval = setInterval(() => {
+    timeLeft--;
+    updateTimerUI();
+    if (timeLeft <= 0) {
+      clearInterval(timerInterval); timerExpired = true;
+      currentButtons.forEach(b => b.disabled = true);
+      document.getElementById("validate").disabled = true;
+      currentButtons.forEach((b, i) => { if (data.correct.includes(i)) b.classList.add("correct"); });
+      currentLevel = Math.max(getGuaranteedFloor(currentLevel), currentLevel - 1);
+      updateGauge(); sessionStorage.setItem("currentLevel", currentLevel);
+      setTimeout(() => {
+        currentQuestionIndex++;
+        sessionStorage.setItem("currentQuestionIndex", currentQuestionIndex);
+        loadQuestion();
+      }, 1500);
+    }
+  }, 1000);
+}
+
+function updateTimerUI() {
+  const circle  = document.getElementById("timer-circle");
+  const display = document.getElementById("timer-display");
+  display.textContent = timeLeft;
+  circle.style.strokeDashoffset = CIRCUMFERENCE * (1 - timeLeft / TIMER_DURATION);
+  if (timeLeft <= 15)      { circle.style.stroke = display.style.color = "#e74c3c"; circle.classList.add("pulse"); }
+  else if (timeLeft <= 30) { circle.style.stroke = display.style.color = "#ff8c00"; circle.classList.remove("pulse"); }
+  else                     { circle.style.stroke = display.style.color = "#ffb703"; circle.classList.remove("pulse"); }
+}
+
+// ── PAUSE ─────────────────────────────────────────────────────────────────────
+function pauseGame(msg) {
+  if (timerExpired || isPaused) return;
+  isPaused = true; clearInterval(timerInterval); timerInterval = null;
+  document.getElementById("pause-joker-msg").textContent = msg || "";
+  document.getElementById("pause-overlay").classList.add("active");
+}
+window.resumeGame = function() {
+  if (!isPaused) return;
+  isPaused = false;
+  document.getElementById("pause-overlay").classList.remove("active");
+  startTimer(questions[currentQuestionIndex]);
+};
+
+// ── JOKER 50/50 ───────────────────────────────────────────────────────────────
+function onFifty() {
+  const correct = questions[currentQuestionIndex].correct;
+  const wrong   = [0,1,2,3].filter(i => !correct.includes(i));
+  wrong.sort(() => Math.random() - 0.5).slice(0, 2).forEach(i => currentButtons[i].style.visibility = "hidden");
+  document.getElementById("fifty").disabled = true;
+  sessionStorage.setItem("usedFifty", "true");
+  pauseGame("Deux mauvaises réponses ont été éliminées.");
+}
+
+// ── RESET GAIN ────────────────────────────────────────────────────────────────
+function onReset() {
+  if (confirm("Remettre le gain à zéro ?")) {
+    currentLevel = 0;
+    sessionStorage.setItem("currentLevel", 0);
     updateGauge();
   }
-  function updateGauge() {
-    document.getElementById("gauge-fill").style.width = (currentLevel/(moneyLevels.length-1))*100 + "%";
-    [0,4,5,7,10,11,13,15].forEach(i => {
-      const el = document.getElementById(`gs-${i}`);
-      if (!el) return;
-      el.classList.remove("reached","current");
-      if (i===currentLevel) el.classList.add("current");
-      else if (i<currentLevel) el.classList.add("reached");
-    });
-    moneyEl.textContent = "💰 " + moneyLevels[currentLevel].toLocaleString("fr-FR") + " €";
-    const fl = getGuaranteedFloor(currentLevel);
-    let badge = document.getElementById("guaranteed-badge");
-    if (fl > 0) {
-      if (!badge) { badge=document.createElement("span"); badge.id="guaranteed-badge"; badge.className="guaranteed-badge"; moneyEl.insertAdjacentElement("afterend",badge); }
-      badge.textContent = "🔒 " + moneyLevels[fl].toLocaleString("fr-FR") + " € assurés";
-    } else { if (badge) badge.remove(); }
-  }
-  buildGauge();
-
-  // TIMER
-  function updateTimerUI() {
-    timerDisp.textContent = timeLeft;
-    const p = timeLeft / TIMER_DURATION;
-    timerCircle.style.strokeDashoffset = CIRCUMFERENCE * (1-p);
-    if (timeLeft<=15)      { timerCircle.style.stroke=timerDisp.style.color="#e74c3c"; timerCircle.classList.add("pulse"); }
-    else if (timeLeft<=30) { timerCircle.style.stroke=timerDisp.style.color="#ff8c00"; timerCircle.classList.remove("pulse"); }
-    else                   { timerCircle.style.stroke=timerDisp.style.color="#ffb703"; timerCircle.classList.remove("pulse"); }
-  }
-  function pauseGame(msg) {
-    if (timerExpired||isPaused) return;
-    isPaused=true; clearInterval(timerInterval); timerInterval=null;
-    document.getElementById("pause-joker-msg").textContent=msg||"";
-    document.getElementById("pause-overlay").classList.add("active");
-  }
-  window.resumeGame = function() {
-    if (!isPaused) return;
-    isPaused=false;
-    document.getElementById("pause-overlay").classList.remove("active");
-    startTimer();
-  };
-  function startTimer() {
-    updateTimerUI();
-    timerInterval = setInterval(() => {
-      timeLeft--;
-      updateTimerUI();
-      if (timeLeft<=0) {
-        clearInterval(timerInterval); timerExpired=true;
-        buttons.forEach(b=>b.disabled=true); validateBtn.disabled=true;
-        buttons.forEach((b,i)=>{ if(data.correct.includes(i)) b.classList.add("correct"); });
-        const fl=getGuaranteedFloor(currentLevel);
-        currentLevel=Math.max(fl,currentLevel-1);
-        updateGauge(); sessionStorage.setItem("currentLevel",currentLevel);
-        alert("⏰ Temps écoulé ! Palier atteint : "+moneyLevels[currentLevel].toLocaleString("fr-FR")+" €");
-        nextQuestion();
-      }
-    },1000);
-  }
-
-  window.startGameSession = function() {
-    document.getElementById("start-overlay").style.display="none";
-    document.getElementById("game-container").style.display="block";
-    startTimer();
-  };
-
-  if (currentQuestionIndex > 0) {
-    document.getElementById("start-overlay").style.display="none";
-    document.getElementById("game-container").style.display="block";
-    startTimer();
-  }
-
-  // VALIDATE
-  validateBtn.onclick = () => {
-    if (timerExpired||isPaused) return;
-    clearInterval(timerInterval); timerInterval=null;
-    const ok = selected.every(i=>data.correct.includes(i)) && data.correct.length===selected.length;
-    buttons.forEach((b,i)=>{ if(data.correct.includes(i)) b.classList.add("correct"); else if(selected.includes(i)) b.classList.add("wrong"); b.disabled=true; });
-    validateBtn.disabled=true;
-    if (ok) {
-      currentLevel++; if(currentLevel>=moneyLevels.length) currentLevel=moneyLevels.length-1;
-      updateGauge(); alert("✅ Correct ! "+moneyLevels[currentLevel].toLocaleString("fr-FR")+" €");
-    } else {
-      const fl=getGuaranteedFloor(currentLevel); currentLevel=Math.max(fl,currentLevel-1);
-      updateGauge(); alert("❌ Mauvaise réponse ! Palier : "+moneyLevels[currentLevel].toLocaleString("fr-FR")+" €");
-    }
-    sessionStorage.setItem("currentLevel",currentLevel);
-    setTimeout(nextQuestion, 1500);
-  };
-
-  function nextQuestion() {
-    currentQuestionIndex++;
-    sessionStorage.setItem("currentQuestionIndex",currentQuestionIndex);
-    if (currentQuestionIndex>=questions.length) {
-      alert("🏆 Partie terminée ! Score final : "+moneyLevels[currentLevel].toLocaleString("fr-FR")+" €");
-      newGame(); return;
-    }
-    location.reload();
-  }
-
-  // JOKERS
-  fiftyBtn.onclick = () => {
-    const wrong=[...Array(4).keys()].filter(i=>!data.correct.includes(i));
-    wrong.sort(()=>Math.random()-0.5).slice(0,2).forEach(i=>buttons[i].style.visibility="hidden");
-    fiftyBtn.disabled=true; sessionStorage.setItem("usedFifty","true");
-    pauseGame("Deux mauvaises réponses ont été éliminées.");
-  };
-  audienceBtn.onclick = () => { audienceBtn.disabled=true; sessionStorage.setItem("usedAudience","true"); pauseGame(); };
-  friendBtn.onclick   = () => { friendBtn.disabled=true;   sessionStorage.setItem("usedFriend","true");   pauseGame(); };
-
-  document.getElementById("reset").onclick = () => {
-    if(confirm("Remettre le gain à zéro ?")) { currentLevel=0; sessionStorage.setItem("currentLevel",0); updateGauge(); }
-  };
-
-  window.newGame = function() {
-    sessionStorage.removeItem("currentQuestionIndex");
-    sessionStorage.removeItem("currentLevel");
-    sessionStorage.removeItem("usedFifty");
-    sessionStorage.removeItem("usedAudience");
-    sessionStorage.removeItem("usedFriend");
-    location.reload();
-  };
 }
+
+// ── GAUGE ─────────────────────────────────────────────────────────────────────
+function getGuaranteedFloor(level) {
+  let f = 0;
+  GUARANTEED_LEVELS.forEach(g => { if (level >= g) f = g; });
+  return f;
+}
+function buildGauge() {
+  const track = document.getElementById("gauge-track");
+  track.querySelectorAll(".gauge-marker").forEach(m => m.remove());
+  GUARANTEED_LEVELS.forEach(g => {
+    const m = document.createElement("div");
+    m.className = "gauge-marker";
+    m.style.left = (g / (moneyLevels.length - 1)) * 100 + "%";
+    track.appendChild(m);
+  });
+  const steps = document.getElementById("gauge-steps");
+  steps.innerHTML = "";
+  [0,4,5,7,10,11,13,15].forEach(i => {
+    const d = document.createElement("div");
+    d.className = "gauge-step" + (GUARANTEED_LEVELS.includes(i) ? " guaranteed" : "");
+    d.id = `gs-${i}`;
+    const v = moneyLevels[i];
+    d.textContent = v >= 1000000 ? "1M€" : v >= 1000 ? (v/1000)+"k" : v+"€";
+    steps.appendChild(d);
+  });
+}
+function updateGauge() {
+  document.getElementById("gauge-fill").style.width = (currentLevel / (moneyLevels.length - 1)) * 100 + "%";
+  [0,4,5,7,10,11,13,15].forEach(i => {
+    const el = document.getElementById(`gs-${i}`);
+    if (!el) return;
+    el.classList.remove("reached","current");
+    if (i === currentLevel) el.classList.add("current");
+    else if (i < currentLevel) el.classList.add("reached");
+  });
+  const moneyEl = document.getElementById("money");
+  moneyEl.textContent = "💰 " + moneyLevels[currentLevel].toLocaleString("fr-FR") + " €";
+  const fl = getGuaranteedFloor(currentLevel);
+  let badge = document.getElementById("guaranteed-badge");
+  if (fl > 0) {
+    if (!badge) { badge = document.createElement("span"); badge.id="guaranteed-badge"; badge.className="guaranteed-badge"; moneyEl.insertAdjacentElement("afterend", badge); }
+    badge.textContent = "🔒 " + moneyLevels[fl].toLocaleString("fr-FR") + " € assurés";
+  } else { if (badge) badge.remove(); }
+}
+
+// ── FIN DE PARTIE ─────────────────────────────────────────────────────────────
+function endGame() {
+  alert("🏆 Partie terminée ! Score final : " + moneyLevels[currentLevel].toLocaleString("fr-FR") + " €");
+  newGame();
+}
+
+// ── NOUVELLE PARTIE (seul endroit avec reload, mais invisible car on revient à l'accueil) ──
+window.newGame = function() {
+  ["currentQuestionIndex","currentLevel","usedFifty","usedAudience","usedFriend","lastSessionId"].forEach(k => sessionStorage.removeItem(k));
+  window.location.href = "home.html";
+};
 </script>
 
 </body>
